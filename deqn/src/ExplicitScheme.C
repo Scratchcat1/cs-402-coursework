@@ -32,9 +32,7 @@ void ExplicitScheme::doAdvance(const double dt)
 
 void ExplicitScheme::updateBoundaries()
 {
-    for (int i = 0; i < 4; i++) {
-        reflectBoundaries(i);
-    }
+    reflectBoundaries();    
 }
 
 void ExplicitScheme::init()
@@ -87,7 +85,7 @@ void ExplicitScheme::diffuse(double dt)
     double ry = dt/(dy*dy);
 //    int k, j;
 
-    #pragma omp parallel for firstprivate(u0, u1, nx, y_max, y_min, x_min, x_max, ry, rx) schedule(static)
+    #pragma omp parallel for firstprivate(nx, y_max, y_min, x_min, x_max, ry, rx) schedule(static)
     for(int k=y_min; k <= y_max; k++) {
         // #pragma omp simd
         for(int j=x_min; j <= x_max; j++) {
@@ -104,7 +102,7 @@ void ExplicitScheme::diffuse(double dt)
     }
 }
 
-void ExplicitScheme::reflectBoundaries(int boundary_id)
+void ExplicitScheme::reflectBoundaries()
 {
     double* u0 = mesh->getU0();
     int x_min = mesh->getMin()[0];
@@ -114,47 +112,53 @@ void ExplicitScheme::reflectBoundaries(int boundary_id)
 
     int nx = mesh->getNx()[0]+2;
 
-    switch(boundary_id) {
-        case 0: 
-            /* top */
-            {
-                for(int j = x_min; j <= x_max; j++) {
-                    int n1 = POLY2(j, y_max, x_min-1, y_min-1, nx);
-                    int n2 = POLY2(j, y_max+1, x_min-1, y_min-1, nx);
+    #pragma omp parallel
+    #pragma omp single nowait
+    {
+         
+        /* top */
+        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        {
+            for(int j = x_min; j <= x_max; j++) {
+                int n1 = POLY2(j, y_max, x_min-1, y_min-1, nx);
+                int n2 = POLY2(j, y_max+1, x_min-1, y_min-1, nx);
 
-                    u0[n2] = u0[n1];
-                }
-            } break;
-        case 1:
-            /* right */
-            {
-                for(int k = y_min; k <= y_max; k++) {
-                    int n1 = POLY2(x_max, k, x_min-1, y_min-1, nx);
-                    int n2 = POLY2(x_max+1, k, x_min-1, y_min-1, nx);
+                u0[n2] = u0[n1];
+            }
+        }
+    
+        /* right */
+        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        {
+            for(int k = y_min; k <= y_max; k++) {
+                int n1 = POLY2(x_max, k, x_min-1, y_min-1, nx);
+                int n2 = POLY2(x_max+1, k, x_min-1, y_min-1, nx);
 
-                    u0[n2] = u0[n1];
-                }
-            } break;
-        case 2: 
-            /* bottom */
-            {
-                for(int j = x_min; j <= x_max; j++) {
-                    int n1 = POLY2(j, y_min, x_min-1, y_min-1, nx);
-                    int n2 = POLY2(j, y_min-1, x_min-1, y_min-1, nx);
+                u0[n2] = u0[n1];
+            }
+        }
+        
+        /* bottom */
+        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        {
+            for(int j = x_min; j <= x_max; j++) {
+                int n1 = POLY2(j, y_min, x_min-1, y_min-1, nx);
+                int n2 = POLY2(j, y_min-1, x_min-1, y_min-1, nx);
 
-                    u0[n2] = u0[n1];
-                }
-            } break;
-        case 3: 
-            /* left */
-            {
-                for(int k = y_min; k <= y_max; k++) {
-                    int n1 = POLY2(x_min, k, x_min-1, y_min-1, nx);
-                    int n2 = POLY2(x_min-1, k, x_min-1, y_min-1, nx);
+                u0[n2] = u0[n1];
+            }
+        }
+        
+        /* left */
+        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        {
+            for(int k = y_min; k <= y_max; k++) {
+                int n1 = POLY2(x_min, k, x_min-1, y_min-1, nx);
+                int n2 = POLY2(x_min-1, k, x_min-1, y_min-1, nx);
 
-                    u0[n2] = u0[n1];
-                }
-            } break;
-        default: std::cerr << "Error in reflectBoundaries(): unknown boundary id (" << boundary_id << ")" << std::endl;
+                u0[n2] = u0[n1];
+            }
+        }
+        // default: std::cerr << "Error in reflectBoundaries(): unknown boundary id (" << boundary_id << ")" << std::endl;
     }
 }

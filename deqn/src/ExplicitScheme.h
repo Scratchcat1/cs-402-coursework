@@ -11,7 +11,7 @@ class ExplicitScheme : public Scheme {
         void updateBoundaries();
         void reset();
         void diffuse(double dt);
-        void reflectBoundaries(int boundary_id);
+        void reflectBoundaries();
     public:
         ExplicitScheme(const InputFile* input, Mesh* m);
 
