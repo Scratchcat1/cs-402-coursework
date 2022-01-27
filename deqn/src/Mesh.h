@@ -7,13 +7,13 @@ class Mesh {
     private:
         const InputFile* input;
 
-        double* u1;
-        double* u0;
-        double* cellx;
-        double* celly;
+        float* u1;
+        float* u0;
+        float* cellx;
+        float* celly;
 
-        double* min_coords;
-        double* max_coords;
+        float* min_coords;
+        float* max_coords;
 
         int NDIM;
 
@@ -21,7 +21,7 @@ class Mesh {
         int* min;
         int* max;
 
-        double* dx;
+        float* dx;
 
         /*
          * A mesh has four neighbours, and they are 
@@ -38,20 +38,20 @@ class Mesh {
     public:
         Mesh(const InputFile* input);
                 
-        double* getU0();
-        double* getU1();
+        float* getU0();
+        float* getU1();
 
-        double* getDx();
+        float* getDx();
         int* getNx();
         int* getMin();
         int* getMax();
         int getDim();
 
-        double* getCellX();
-        double* getCellY();
+        float* getCellX();
+        float* getCellY();
 
         int* getNeighbours();
 
-        double getTotalTemperature();
+        float getTotalTemperature();
 };
 #endif

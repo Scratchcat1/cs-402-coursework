@@ -20,16 +20,16 @@ class InputFile {
                 const std::string& name,
                 const int dfault) const;
 
-        double getDouble(
+        float getfloat(
                 const std::string& name,
-                const double dfault) const;
+                const float dfault) const;
 
         std::string getString(
                 const std::string& name,
                 const std::string& dfault) const;
 
-        std::vector<double> getDoubleList(
+        std::vector<float> getfloatList(
                 const std::string& name,
-                const std::vector<double>& dfault) const;
+                const std::vector<float>& dfault) const;
 };
 #endif

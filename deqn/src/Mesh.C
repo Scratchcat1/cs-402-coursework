@@ -15,32 +15,32 @@ Mesh::Mesh(const InputFile* input):
     n = new int[NDIM];
     min = new int[NDIM];
     max = new int[NDIM];
-    dx = new double[NDIM];
+    dx = new float[NDIM];
 
     int nx = input->getInt("nx", 0);
     int ny = input->getInt("ny", 0);
 
-    min_coords = new double[NDIM];
-    max_coords = new double[NDIM];
+    min_coords = new float[NDIM];
+    max_coords = new float[NDIM];
 
-    min_coords[0] = input->getDouble("xmin", 0.0);
-    max_coords[0] = input->getDouble("xmax", 1.0);
-    min_coords[1] = input->getDouble("ymin", 0.0);
-    max_coords[1] = input->getDouble("ymax", 1.0);
+    min_coords[0] = input->getfloat("xmin", 0.0);
+    max_coords[0] = input->getfloat("xmax", 1.0);
+    min_coords[1] = input->getfloat("ymin", 0.0);
+    max_coords[1] = input->getfloat("ymax", 1.0);
 
     // setup first dimension.
     n[0] = nx;
     min[0] = 1;
     max[0] = nx;
 
-    dx[0] = ((double) max_coords[0]-min_coords[0])/nx;
+    dx[0] = ((float) max_coords[0]-min_coords[0])/nx;
 
     // setup second dimension.
     n[1] = ny;
     min[1] = 1;
     max[1] = ny;
 
-    dx[1] = ((double) max_coords[1]-min_coords[1])/ny;
+    dx[1] = ((float) max_coords[1]-min_coords[1])/ny;
     
     allocate();
 }
@@ -53,15 +53,15 @@ void Mesh::allocate()
     int ny = n[1];
 
     /* Allocate arrays */
-    u1 = new double[(nx+2) * (ny+2)];
-    u0 = new double[(nx+2) * (ny+2)];
+    u1 = new float[(nx+2) * (ny+2)];
+    u0 = new float[(nx+2) * (ny+2)];
     
     /* Allocate and initialise coordinate arrays */
-    cellx = new double[nx+2];
-    celly = new double[ny+2];
+    cellx = new float[nx+2];
+    celly = new float[ny+2];
 
-    double xmin = min_coords[0];
-    double ymin = min_coords[1];
+    float xmin = min_coords[0];
+    float ymin = min_coords[1];
 
     for (int i=0; i < nx+2; i++) {
         cellx[i]=xmin+dx[0]*(i-1);
@@ -72,17 +72,17 @@ void Mesh::allocate()
     }
 }
 
-double* Mesh::getU0()
+float* Mesh::getU0()
 {
     return u0;
 }
 
-double* Mesh::getU1()
+float* Mesh::getU1()
 {
     return u1;
 }
 
-double* Mesh::getDx()
+float* Mesh::getDx()
 {
     return dx;
 }
@@ -112,20 +112,20 @@ int* Mesh::getNeighbours()
     return neighbours;
 }
 
-double* Mesh::getCellX()
+float* Mesh::getCellX()
 {
     return cellx;
 }
 
-double* Mesh::getCellY()
+float* Mesh::getCellY()
 {
     return celly;
 }
 
-double Mesh::getTotalTemperature()
+float Mesh::getTotalTemperature()
 {
     if(allocated) {
-        double temperature = 0.0;
+        float temperature = 0.0;
         int x_min = min[0];
         int x_max = max[0];
         int y_min = min[1]; 

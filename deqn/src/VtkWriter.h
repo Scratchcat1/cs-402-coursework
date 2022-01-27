@@ -12,10 +12,10 @@ class VtkWriter {
 
         Mesh* mesh;
 
-        void writeVtk(int step, double time);
+        void writeVtk(int step, float time);
     public:
         VtkWriter(std::string basename, Mesh* mesh);
 
-        void write(int step, double time);
+        void write(int step, float time);
 };
 #endif

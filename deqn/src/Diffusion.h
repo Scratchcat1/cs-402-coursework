@@ -13,13 +13,13 @@ class Diffusion {
 
         Scheme* scheme;
 
-        std::vector<double> subregion;
+        std::vector<float> subregion;
     public:
         Diffusion(const InputFile* input, Mesh* m);
 
         ~Diffusion();
 
         void init();
-        void doCycle(const double dt);
+        void doCycle(const float dt);
 };
 #endif

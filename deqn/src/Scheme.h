@@ -7,7 +7,7 @@ class Scheme {
     private:
         Mesh* mesh;
     public:
-        virtual void doAdvance(const double dt) = 0;
+        virtual void doAdvance(const float dt) = 0;
 
         virtual void init() = 0;
 };

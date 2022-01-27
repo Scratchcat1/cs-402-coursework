@@ -15,11 +15,11 @@ class Driver {
         Diffusion* diffusion;
         VtkWriter* writer;
 
-        double t_start;
-        double t_end;
-        double dt_max;
+        float t_start;
+        float t_end;
+        float dt_max;
 
-        double dt;
+        float dt;
 
         std::string problem_name;
 

@@ -22,7 +22,7 @@ VtkWriter::VtkWriter(std::string basename, Mesh* mesh) :
         << 1 << std::endl;
 }
 
-void VtkWriter::write(int step, double time)
+void VtkWriter::write(int step, float time)
 {
     int rank;
     int nprocs;
@@ -48,7 +48,7 @@ void VtkWriter::write(int step, double time)
     writeVtk(step, time);
 }
 
-void VtkWriter::writeVtk(int step, double time)
+void VtkWriter::writeVtk(int step, float time)
 {
     std::ofstream file;
     std::stringstream fname;
@@ -71,7 +71,7 @@ void VtkWriter::writeVtk(int step, double time)
 
     file << "DATASET RECTILINEAR_GRID" << std::endl;
     file << "FIELD FieldData 2" << std::endl;
-    file << "TIME 1 1 double" << std::endl;
+    file << "TIME 1 1 float" << std::endl;
     file << time << std::endl;
     file << "CYCLE 1 1 int" << std::endl;
     file << step << std::endl;
@@ -106,7 +106,7 @@ void VtkWriter::writeVtk(int step, double time)
 
     file << "FIELD FieldData 1" << std::endl;
 
-    file << "u 1 " << mesh->getNx()[0]*mesh->getNx()[1] << " double" << std::endl;
+    file << "u 1 " << mesh->getNx()[0]*mesh->getNx()[1] << " float" << std::endl;
 
     for(int j=1; j <= mesh->getNx()[1]; j++) {
         for (int i = 1; i <= mesh->getNx()[0]; i++) {

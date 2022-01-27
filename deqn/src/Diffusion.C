@@ -18,7 +18,7 @@ Diffusion::Diffusion(const InputFile* input, Mesh* m) :
         exit(1);
     }
 
-    subregion = input->getDoubleList("subregion", std::vector<double>());
+    subregion = input->getfloatList("subregion", std::vector<float>());
 
     if (subregion.size() != 0 && subregion.size() != 4) {
         std::cerr << "Error:  region must have 4 entries (xmin, ymin, xmax, ymax)" << std::endl;
@@ -35,13 +35,13 @@ Diffusion::~Diffusion()
 
 void Diffusion::init()
 {
-    double* u0 = mesh->getU0();
+    float* u0 = mesh->getU0();
 
     int x_max = mesh->getNx()[0];
     int y_max = mesh->getNx()[1];
 
-    double* cellx = mesh->getCellX();
-    double* celly = mesh->getCellY();
+    float* cellx = mesh->getCellX();
+    float* celly = mesh->getCellY();
 
     int nx = x_max+2;
 
@@ -68,7 +68,7 @@ void Diffusion::init()
     scheme->init();
 }
 
-void Diffusion::doCycle(const double dt)
+void Diffusion::doCycle(const float dt)
 {
     scheme->doAdvance(dt);
 }

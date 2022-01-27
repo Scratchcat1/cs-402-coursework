@@ -72,9 +72,9 @@ int InputFile::getInt(
     return get(name, dfault);
 }
 
-double InputFile::getDouble(
+float InputFile::getfloat(
         const std::string& name,
-        const double dfault) const
+        const float dfault) const
 {
     return get(name, dfault);
 }
@@ -86,9 +86,9 @@ std::string InputFile::getString(
     return get(name, dfault);
 }
 
-std::vector<double> InputFile::getDoubleList(
+std::vector<float> InputFile::getfloatList(
         const std::string& name,
-        const std::vector<double>& dfault) const
+        const std::vector<float>& dfault) const
 {
 
     std::map<std::string, std::string>::const_iterator itr = pairs.find(name);
@@ -98,8 +98,8 @@ std::vector<double> InputFile::getDoubleList(
 
     std::istringstream iss(itr->second);
 
-    std::vector<double> vallist;
-    double val;
+    std::vector<float> vallist;
+    float val;
 
     while (iss >> val)
         vallist.push_back(val);

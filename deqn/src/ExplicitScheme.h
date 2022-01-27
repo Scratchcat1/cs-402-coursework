@@ -10,12 +10,12 @@ class ExplicitScheme : public Scheme {
 
         void updateBoundaries();
         void reset();
-        void diffuse(double dt);
+        void diffuse(float dt);
         void reflectBoundaries();
     public:
         ExplicitScheme(const InputFile* input, Mesh* m);
 
-        void doAdvance(const double dt);
+        void doAdvance(const float dt);
 
         void init();
 };

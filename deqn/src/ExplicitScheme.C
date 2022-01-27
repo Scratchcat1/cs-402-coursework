@@ -12,7 +12,7 @@ ExplicitScheme::ExplicitScheme(const InputFile* input, Mesh* m) :
     int ny = mesh->getNx()[1];
 }
 
-void ExplicitScheme::doAdvance(const double dt)
+void ExplicitScheme::doAdvance(const float dt)
 {
     double start = omp_get_wtime();
     diffuse(dt);
@@ -42,9 +42,9 @@ void ExplicitScheme::init()
 
 void ExplicitScheme::reset()
 {
-    double start = omp_get_wtime();
-    double* u0 = mesh->getU0();
-    double* u1 = mesh->getU1();
+    float start = omp_get_wtime();
+    float* u0 = mesh->getU0();
+    float* u1 = mesh->getU1();
     int x_min = mesh->getMin()[0];
     int x_max = mesh->getMax()[0];
     int y_min = mesh->getMin()[1]; 
@@ -63,7 +63,7 @@ void ExplicitScheme::reset()
     for(int k = y_min-1; k <= y_max+1; k++) {
         int start = POLY2(x_min - 1,k,x_min-1,y_min-1,nx);
         int end = POLY2(x_max + 1,k,x_min-1,y_min-1,nx);
-        std::memcpy(&u0[start], &u1[start], sizeof(double) * (end - start));
+        std::memcpy(&u0[start], &u1[start], sizeof(float) * (end - start));
     }
     // int *n = mesh->getNx();
     // #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)
@@ -71,29 +71,29 @@ void ExplicitScheme::reset()
     //     u0[k] = u1[k];
     // }
     // int *n = mesh->getNx();
-    // std::memcpy(u1, u0, sizeof(double) * (n[0] + 2) * (n[1] + 2));
+    // std::memcpy(u1, u0, sizeof(float) * (n[0] + 2) * (n[1] + 2));
 }
 
-void ExplicitScheme::diffuse(double dt)
+void ExplicitScheme::diffuse(float dt)
 {
-    double* u0 = mesh->getU0();
-    double* u1 = mesh->getU1();
+    float* u0 = mesh->getU0();
+    float* u1 = mesh->getU1();
     int x_min = mesh->getMin()[0];
     int x_max = mesh->getMax()[0];
     int y_min = mesh->getMin()[1]; 
     int y_max = mesh->getMax()[1]; 
-    double dx = mesh->getDx()[0];
-    double dy = mesh->getDx()[1];
+    float dx = mesh->getDx()[0];
+    float dy = mesh->getDx()[1];
 
     int nx = mesh->getNx()[0]+2;
 
-    double rx = dt/(dx*dx);
-    double ry = dt/(dy*dy);
+    float rx = dt/(dx*dx);
+    float ry = dt/(dy*dy);
 //    int k, j;
 
     #pragma omp parallel for firstprivate(nx, y_max, y_min, x_min, x_max, ry, rx) schedule(static)
     for(int k=y_min; k <= y_max; k++) {
-        // #pragma omp simd
+        #pragma omp simd
         for(int j=x_min; j <= x_max; j++) {
 
             int n1 = POLY2(j,k,x_min-1,y_min-1,nx);
@@ -110,7 +110,7 @@ void ExplicitScheme::diffuse(double dt)
 
 void ExplicitScheme::reflectBoundaries()
 {
-    double* u0 = mesh->getU0();
+    float* u0 = mesh->getU0();
     int x_min = mesh->getMin()[0];
     int x_max = mesh->getMax()[0];
     int y_min = mesh->getMin()[1]; 
