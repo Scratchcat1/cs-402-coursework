@@ -54,12 +54,18 @@ void ExplicitScheme::reset()
 
     int nx = mesh->getNx()[0]+2;
 
+    #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)
     for(int k = y_min-1; k <= y_max+1; k++) {
         for(int j = x_min-1; j <=  x_max+1; j++) {
             int i = POLY2(j,k,x_min-1,y_min-1,nx);
             u0[i] = u1[i];
         }
     }
+//    int *n = mesh->getNx();
+//    #pragma omp simd
+//    for (int k = 0; k < (n[0] + 2) * (n[1] + 2); k++) {
+//        u1[k] = u0[k];
+//    }
     // int *n = mesh->getNx();
     // std::memcpy(u1, u0, sizeof(double) * (n[0] + 2) * (n[1] + 2));
 }

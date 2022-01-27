@@ -1,5 +1,5 @@
 set -e
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=6
 make clean
 make
 cd build
