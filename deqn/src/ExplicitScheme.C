@@ -59,11 +59,11 @@ void ExplicitScheme::reset()
 //            u0[i] = u1[i];
 //        }
 //    }
-    #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)
+    #pragma omp parallel for firstprivate(x_min, x_max, y_min, y_max, nx) schedule(static)
     for(int k = y_min-1; k <= y_max+1; k++) {
         int start = POLY2(x_min - 1,k,x_min-1,y_min-1,nx);
         int end = POLY2(x_max + 1,k,x_min-1,y_min-1,nx);
-        std::memcpy(&u1[start], &u0[start], sizeof(double) * (end - start));
+        std::memcpy(&u0[start], &u1[start], sizeof(double) * (end - start));
     }
     // int *n = mesh->getNx();
     // #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)

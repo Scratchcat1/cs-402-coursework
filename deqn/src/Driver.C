@@ -38,8 +38,8 @@
     writer = new VtkWriter(pname, mesh);
 
     /* Initial mesh dump */
-//    if(vis_frequency != -1)
-//        writer->write(0, 0.0);
+   if(vis_frequency != -1)
+       writer->write(0, 0.0);
 }
 
 Driver::~Driver() {
@@ -60,8 +60,8 @@ void Driver::run() {
 
         diffusion->doCycle(dt);
 
-//        if(step % vis_frequency == 0 && vis_frequency != -1)
-//            writer->write(step, t_current);
+       if(step % vis_frequency == 0 && vis_frequency != -1)
+           writer->write(step, t_current);
         if(step % summary_frequency == 0 && summary_frequency != -1) {
             double temperature = mesh->getTotalTemperature();
             std::cout << "+\tcurrent total temperature: " << temperature << std::endl;
@@ -69,8 +69,8 @@ void Driver::run() {
 
     }
 
-//    if(step % vis_frequency != 0 && vis_frequency != -1)
-  //      writer->write(step, t_current);
+   if(step % vis_frequency != 0 && vis_frequency != -1)
+       writer->write(step, t_current);
 
     std::cout << std::endl;
     std::cout << "+++++++++++++++++++++" << std::endl;
