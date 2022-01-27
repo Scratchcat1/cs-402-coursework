@@ -79,11 +79,12 @@ void ExplicitScheme::diffuse(double dt)
 
     double rx = dt/(dx*dx);
     double ry = dt/(dy*dy);
-    int k, j;
+//    int k, j;
 
-    #pragma omp parallel for schedule(static)
-    for(k=y_min; k <= y_max; k++) {
-        for(j=x_min; j <= x_max; j++) {
+    #pragma omp parallel for firstprivate(u0, u1, nx, y_max, y_min, x_min, x_max, ry, rx) schedule(static)
+    for(int k=y_min; k <= y_max; k++) {
+//        #pragma omp simd
+        for(int j=x_min; j <= x_max; j++) {
 
             int n1 = POLY2(j,k,x_min-1,y_min-1,nx);
             int n2 = POLY2(j-1,k,x_min-1,y_min-1,nx);
