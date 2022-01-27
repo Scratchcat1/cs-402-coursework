@@ -117,7 +117,7 @@ void ExplicitScheme::reflectBoundaries()
     {
          
         /* top */
-        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        #pragma omp task firstprivate(x_min, x_max, y_min, y_max, nx)
         {
             for(int j = x_min; j <= x_max; j++) {
                 int n1 = POLY2(j, y_max, x_min-1, y_min-1, nx);
@@ -128,7 +128,7 @@ void ExplicitScheme::reflectBoundaries()
         }
     
         /* right */
-        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        #pragma omp task firstprivate(x_min, x_max, y_min, y_max, nx)
         {
             for(int k = y_min; k <= y_max; k++) {
                 int n1 = POLY2(x_max, k, x_min-1, y_min-1, nx);
@@ -139,7 +139,7 @@ void ExplicitScheme::reflectBoundaries()
         }
         
         /* bottom */
-        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        #pragma omp task firstprivate(x_min, x_max, y_min, y_max, nx)
         {
             for(int j = x_min; j <= x_max; j++) {
                 int n1 = POLY2(j, y_min, x_min-1, y_min-1, nx);
@@ -150,7 +150,7 @@ void ExplicitScheme::reflectBoundaries()
         }
         
         /* left */
-        #pragma omp task private(x_min, x_max, y_min, y_max, nx)
+        #pragma omp task firstprivate(x_min, x_max, y_min, y_max, nx)
         {
             for(int k = y_min; k <= y_max; k++) {
                 int n1 = POLY2(x_min, k, x_min-1, y_min-1, nx);
