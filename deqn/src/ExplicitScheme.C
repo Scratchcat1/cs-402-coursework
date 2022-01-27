@@ -2,7 +2,7 @@
 #include <omp.h>
 #include <iostream>
 #include <cstring>
-
+#include <math.h>
 #define POLY2(i, j, imin, jmin, ni) (((i) - (imin)) + (((j)-(jmin)) * (ni)))
 
 ExplicitScheme::ExplicitScheme(const InputFile* input, Mesh* m) :
@@ -89,7 +89,7 @@ void ExplicitScheme::diffuse(double dt)
 
     #pragma omp parallel for firstprivate(u0, u1, nx, y_max, y_min, x_min, x_max, ry, rx) schedule(static)
     for(int k=y_min; k <= y_max; k++) {
-//        #pragma omp simd
+        // #pragma omp simd
         for(int j=x_min; j <= x_max; j++) {
 
             int n1 = POLY2(j,k,x_min-1,y_min-1,nx);

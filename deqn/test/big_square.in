@@ -1,9 +1,9 @@
-nx 3000
-ny 3000
+nx 9000
+ny 9000
 xmin 0.0
 ymin 0.0
-xmax 3000.0
-ymax 3000.0
+xmax 9000.0
+ymax 9000.0
 initial_dt 0.04
 end_time 0.80
 scheme explicit
