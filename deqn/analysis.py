@@ -12,9 +12,9 @@ def get_time_from_timing_line(line):
     return float(string_time)
 
 def run_deqn(environment_variables = {}):
-    process_output = subprocess.run(["bash", "./run_local.sh"], capture_output=True, env={**os.environ, **environment_variables})
+    process_output = subprocess.run(["bash", "./run_local.sh"], stdout=subprocess.PIPE, env={**os.environ, **environment_variables})
     output_lines = process_output.stdout.decode().split("\n")
-    # print(process_output.stderr)
+#    print(process_output.stdout)
     timing_lines = [line for line in output_lines if "seconds" in line]
     
     timing_results = []
@@ -39,7 +39,7 @@ def time_against_thread_count():
         "Update Boundaries": pd.Series(dtype='float')
         })
     for thread_count in [1, 2, 4, 8, 12, 16, 32]:
-        df_for_thread_count = run_deqn({"OPENMP_NUM_THREADS":str(thread_count)})
+        df_for_thread_count = run_deqn({"OMP_NUM_THREADS":str(thread_count)})
         df_for_thread_count["Thread Count"] = thread_count
         df = pd.concat([df, df_for_thread_count], ignore_index = True)
     print(df)
@@ -56,5 +56,5 @@ def time_against_thread_count():
     plt.show()
 
 if __name__ == "__main__":
-    run_deqn({"OPENMP_NUM_THREADS":"2"})
+    run_deqn({"OMP_NUM_THREADS":"2"})
     time_against_thread_count()

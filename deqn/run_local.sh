@@ -1,5 +1,6 @@
 set -e
 # export OMP_NUM_THREADS=1
+echo "OMP_NUM_THREADS: $OMP_NUM_THREADS"
 make clean
 make -j 8
 cd build
