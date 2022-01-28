@@ -100,7 +100,7 @@ def time_against_square_size_by_thread_count():
         })
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     
-    square_sizes = [2**x for x in range(3, 14)]
+    square_sizes = np.array([2**x for x in range(3, 14)])
     thread_counts = [1, 2, 4, 8]
     for square_size in square_sizes:
         for thread_count in thread_counts:
