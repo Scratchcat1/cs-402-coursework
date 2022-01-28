@@ -124,6 +124,7 @@ def time_against_square_size_by_thread_count():
     plt.legend()
     plt.xscale('log')
     plt.yscale('log')
+    plt.savefig(f"plots/time_against_square_size_by_thread_count.png")
     plt.show()
 
 if __name__ == "__main__":
