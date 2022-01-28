@@ -65,6 +65,7 @@ void ExplicitScheme::reset()
         int end = POLY2(x_max + 1,k,x_min-1,y_min-1,nx);
         std::memcpy(&u0[start], &u1[start], sizeof(double) * (end - start));
     }
+    // mesh->switchMatricies();
     // int *n = mesh->getNx();
     // #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)
     // for (int k = 0; k < (n[0] + 2) * (n[1] + 2); k++) {

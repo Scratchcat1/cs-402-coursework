@@ -82,6 +82,13 @@ double* Mesh::getU1()
     return u1;
 }
 
+void Mesh::switchMatricies()
+{
+    double* tmp = u0;
+    u0 = u1;
+    u1 = tmp;
+}
+
 double* Mesh::getDx()
 {
     return dx;

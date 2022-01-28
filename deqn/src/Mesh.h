@@ -40,6 +40,7 @@ class Mesh {
                 
         double* getU0();
         double* getU1();
+        void switchMatricies();
 
         double* getDx();
         int* getNx();
