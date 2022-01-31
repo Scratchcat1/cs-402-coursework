@@ -1,6 +1,7 @@
 #include "Diffusion.h"
 
 #include "ExplicitScheme.h"
+#include "ExplicitSchemeSingleThread.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -13,6 +14,10 @@ Diffusion::Diffusion(const InputFile* input, Mesh* m) :
 
     if(scheme_str.compare("explicit") == 0) {
         scheme = new ExplicitScheme(input, mesh);
+    } else if(scheme_str.compare("explicit_single_thread") == 0) {
+        scheme = new ExplicitSchemeSingleThread(input, mesh);
+    // } else if(scheme_str.compare("explicit") == 0) {
+    //     scheme = new ExplicitSchemeSingleThread(input, mesh);
     } else {
         std::cerr << "Error: unknown scheme \"" << scheme_str << "\"" << std::endl;
         exit(1);
