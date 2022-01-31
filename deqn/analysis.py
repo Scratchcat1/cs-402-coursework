@@ -86,6 +86,7 @@ def time_against_thread_count_by_function():
     for attribute in ["Diffuse", "Reset", "Update Boundaries", "Total"]:
         df[["Thread Count", attribute]].boxplot(by="Thread Count", showfliers=False)
         plt.savefig(f"plots/time_against_thread_count_attribute_f{attribute.lower().replace(' ', '_')}.png")
+        plt.clf()
 
 def time_against_square_size_by_thread_count():
     print("time_against_square_size_by_thread_count")
@@ -101,9 +102,10 @@ def time_against_square_size_by_thread_count():
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     
     square_sizes = np.array([2**x for x in range(3, 14)])
-    thread_counts = [1, 2, 4, 8]
+    thread_counts = [1, 2, 4, 8, 12]
     for square_size in square_sizes:
         for thread_count in thread_counts:
+            # Generate the config file
             print("Square size: ", square_size, "  Thread count: ", thread_count)
             deqn_config_file = DeqnConfigFile()
             deqn_config_file.nx = square_size
@@ -117,6 +119,8 @@ def time_against_square_size_by_thread_count():
             df_for_thread_count["Thread Count"] = thread_count
             df = pd.concat([df, df_for_thread_count], ignore_index = True)
     df_by_size = df.groupby(["Square Size", "Thread Count"], as_index=False).mean()
+
+    # Timing graph
     for thread_count in thread_counts:
         plt.plot(square_sizes, df_by_size[df_by_size["Thread Count"] == thread_count]["Total"], label=f"{thread_count}T")
     plt.xlabel("Square edge length")
@@ -125,9 +129,34 @@ def time_against_square_size_by_thread_count():
     plt.xscale('log')
     plt.yscale('log')
     plt.savefig(f"plots/time_against_square_size_by_thread_count.png")
-    plt.show()
+    plt.clf()
+
+    # Speed up graph
+    for thread_count in thread_counts:
+        proportional_speedup = np.array(df_by_size[df_by_size["Thread Count"] == 1]["Total"]) / np.array(df_by_size[df_by_size["Thread Count"] == thread_count]["Total"])
+        plt.plot(square_sizes, proportional_speedup, label=f"{thread_count}T")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Proportional speedup (vs 1T)")
+    plt.legend()
+    plt.xscale('log')
+    plt.savefig(f"plots/speed_up_against_square_size_by_thread_count.png")
+    plt.clf()
+
+    # Memory bandwidth
+    for thread_count in thread_counts:
+        current_thread_count_data = df_by_size[df_by_size["Thread Count"] == thread_count]
+        memory_bandwidth = 2 * 8 * np.square(np.array(current_thread_count_data["Square Size"])) / (current_thread_count_data["Total"] / 1e6)
+        plt.plot(square_sizes, memory_bandwidth, label=f"{thread_count}T")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Memory bandwidth (B/s)")
+    plt.legend()
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig(f"plots/memory_bandwidth_against_square_size_by_thread_count.png")
+    plt.clf()
 
 if __name__ == "__main__":
+    subprocess.run(["bash", "./clean_build.sh"])
     # run_deqn({"OMP_NUM_THREADS":"2"})
     # time_against_thread_count_by_function()
     time_against_square_size_by_thread_count()
