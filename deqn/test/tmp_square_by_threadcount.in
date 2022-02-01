@@ -6,6 +6,6 @@ xmax 8192.0
 ymax 8192.0
 initial_dt 0.04
 end_time 1.8
-scheme explicit
+scheme explicit_tiles
 vis_frequency -1
 subregion 30.0 30.0 60.0 60.0

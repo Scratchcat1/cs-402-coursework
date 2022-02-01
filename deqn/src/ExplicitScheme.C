@@ -8,8 +8,8 @@
 ExplicitScheme::ExplicitScheme(const InputFile* input, Mesh* m) :
     mesh(m)
 {
-    int nx = mesh->getNx()[0];
-    int ny = mesh->getNx()[1];
+    // int nx = mesh->getNx()[0];
+    // int ny = mesh->getNx()[1];
 }
 
 void ExplicitScheme::doAdvance(const double dt)

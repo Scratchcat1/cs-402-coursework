@@ -157,8 +157,80 @@ def time_against_square_size_by_thread_count():
     plt.savefig(f"plots/memory_bandwidth_against_square_size_by_thread_count.png")
     plt.clf()
 
+def time_against_square_size_by_tile_size():
+    print("time_against_square_size_by_tile_size")
+    df = pd.DataFrame({
+        "Square Size": pd.Series(dtype='int32'),
+        "Tile Size": pd.Series(dtype='int32'),
+        "Iteration": pd.Series(dtype='int32'),
+        "Diffuse": pd.Series(dtype='float'),
+        "Reset": pd.Series(dtype='float'),
+        "Update Boundaries": pd.Series(dtype='float'),
+        "Total": pd.Series(dtype='float')
+        })
+    deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
+    
+    square_sizes = np.array([2**x for x in range(3, 14)])
+    tile_sizes = [0, 4, 8, 16, 32, 64, 128, 256, 512]
+    for square_size in square_sizes:
+        for tile_size in tile_sizes:
+            # Generate the config file
+            print("Square size: ", square_size, "  Tile Size: ", tile_size)
+            deqn_config_file = DeqnConfigFile()
+            deqn_config_file.nx = square_size
+            deqn_config_file.ny = square_size
+            deqn_config_file.xmax = float(square_size)
+            deqn_config_file.ymax = float(square_size)
+            if tile_size == 0:
+                deqn_config_file.scheme = "explicit"
+            else:
+                deqn_config_file.scheme = "explicit_tiles"
+            deqn_config_file.save_to_file(deqn_config_filepath)
+
+            df_for_tile_size = run_deqn(os.path.join(os.path.pardir, deqn_config_filepath))
+            df_for_tile_size["Square Size"] = square_size
+            df_for_tile_size["Tile Size"] = tile_size
+            df = pd.concat([df, df_for_tile_size], ignore_index = True)
+    df_by_size = df.groupby(["Square Size", "Tile Size"], as_index=False).mean()
+
+    # Timing graph
+    for tile_size in tile_sizes:
+        plt.plot(square_sizes, df_by_size[df_by_size["Tile Size"] == tile_size]["Total"], label=f"{tile_size}x{tile_size}")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Total time (microseconds)")
+    plt.legend()
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig(f"plots/time_against_square_size_by_tile_size.png")
+    plt.clf()
+
+    # Speed up graph
+    for tile_size in tile_sizes:
+        proportional_speedup = np.array(df_by_size[df_by_size["Tile Size"] == 0]["Total"]) / np.array(df_by_size[df_by_size["Tile Size"] == tile_size]["Total"])
+        plt.plot(square_sizes, proportional_speedup, label=f"{tile_size}x{tile_size}")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Proportional speedup (vs NoTilesMT)")
+    plt.legend()
+    plt.xscale('log')
+    plt.savefig(f"plots/speed_up_against_square_size_by_tile_size.png")
+    plt.clf()
+
+    # Memory bandwidth
+    for tile_size in tile_sizes:
+        current_tile_size_data = df_by_size[df_by_size["Tile Size"] == tile_size]
+        memory_bandwidth = 2 * 8 * np.square(np.array(current_tile_size_data["Square Size"])) / (current_tile_size_data["Total"] / 1e6)
+        plt.plot(square_sizes, memory_bandwidth, label=f"{tile_size}x{tile_size}")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Memory bandwidth (B/s)")
+    plt.legend()
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig(f"plots/memory_bandwidth_against_square_size_by_tile_size.png")
+    plt.clf()
+
 if __name__ == "__main__":
     subprocess.run(["bash", "./clean_build.sh"])
     # run_deqn({"OMP_NUM_THREADS":"2"})
-    # time_against_thread_count_by_function()
+    time_against_thread_count_by_function()
     time_against_square_size_by_thread_count()
+    time_against_square_size_by_tile_size()

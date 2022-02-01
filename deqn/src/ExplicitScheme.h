@@ -6,12 +6,12 @@
 
 class ExplicitScheme : public Scheme {
     private:
-        Mesh* mesh;
-
         void updateBoundaries();
         void reset();
         void diffuse(double dt);
         void reflectBoundaries();
+    protected:
+        Mesh* mesh;
     public:
         ExplicitScheme(const InputFile* input, Mesh* m);
 
