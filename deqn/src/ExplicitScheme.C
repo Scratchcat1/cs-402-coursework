@@ -67,7 +67,7 @@ void ExplicitScheme::reset()
     }
     // mesh->switchMatricies();
     // int *n = mesh->getNx();
-    // #pragma omp parallel for firstprivate(u0, u1, x_min, x_max, y_min, y_max, nx) schedule(static)
+    // #pragma omp parallel for firstprivate(n, x_min, x_max, y_min, y_max, nx) schedule(static)
     // for (int k = 0; k < (n[0] + 2) * (n[1] + 2); k++) {
     //     u0[k] = u1[k];
     // }
