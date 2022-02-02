@@ -87,7 +87,7 @@ def time_against_thread_count_by_function():
         df_for_thread_count["Thread Count"] = thread_count
         df = pd.concat([df, df_for_thread_count], ignore_index = True)
     print(df)
-    thread_means_df = df.groupby(["Thread Count"]).mean()
+    thread_means_df = df.groupby(["Thread Count"]).median()
     x = np.arange(len(thread_means_df))
     width = 0.2
     # plt.boxplot(thread_means_df["Diffuse"], vert=True)
@@ -132,7 +132,7 @@ def time_against_square_size_by_thread_count():
             df_for_thread_count["Square Size"] = square_size
             df_for_thread_count["Thread Count"] = thread_count
             df = pd.concat([df, df_for_thread_count], ignore_index = True)
-    df_by_size = df.groupby(["Square Size", "Thread Count"], as_index=False).mean()
+    df_by_size = df.groupby(["Square Size", "Thread Count"], as_index=False).median()
 
     # Timing graph
     for thread_count in thread_counts:
@@ -203,7 +203,7 @@ def time_against_square_size_by_tile_size():
             df_for_tile_size["Square Size"] = square_size
             df_for_tile_size["Tile Size"] = tile_size
             df = pd.concat([df, df_for_tile_size], ignore_index = True)
-    df_by_size = df.groupby(["Square Size", "Tile Size"], as_index=False).mean()
+    df_by_size = df.groupby(["Square Size", "Tile Size"], as_index=False).median()
 
     # Timing graph
     for tile_size in tile_sizes:
@@ -240,9 +240,54 @@ def time_against_square_size_by_tile_size():
     plt.savefig(f"plots/memory_bandwidth_against_square_size_by_tile_size.png")
     plt.clf()
 
+def time_against_square_size_by_schedule():
+    print("time_against_square_size_by_schedule")
+    df = pd.DataFrame({
+        "Square Size": pd.Series(dtype='int32'),
+        "Schedule": pd.Series(dtype=object),
+        "Iteration": pd.Series(dtype='int32'),
+        "Diffuse": pd.Series(dtype='float'),
+        "Reset": pd.Series(dtype='float'),
+        "Update Boundaries": pd.Series(dtype='float'),
+        "Total": pd.Series(dtype='float')
+        })
+    deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
+    
+    square_sizes = np.array([2**x for x in range(3, 14)])
+    schedules = ["static", "dynamic,1", "dynamic,8", "guided", "guided,8", "auto"]
+    for square_size in square_sizes:
+        for schedule in schedules:
+            # Generate the config file
+            print("Square size: ", square_size, "  Schedule: ", schedule)
+            deqn_config_file = DeqnConfigFile()
+            deqn_config_file.nx = square_size
+            deqn_config_file.ny = square_size
+            deqn_config_file.xmax = float(square_size)
+            deqn_config_file.ymax = float(square_size)
+            deqn_config_file.scheme = "explicit_runtime_schedule"
+            deqn_config_file.save_to_file(deqn_config_filepath)
+
+            df_for_schedule = run_deqn(os.path.join(os.path.pardir, deqn_config_filepath), {"OMP_SCHEDULE": schedule})
+            df_for_schedule["Square Size"] = square_size
+            df_for_schedule["Schedule"] = schedule
+            df = pd.concat([df, df_for_schedule], ignore_index = True)
+    df_by_size = df.groupby(["Square Size", "Schedule"], as_index=False).median()
+
+    # Timing graph
+    for schedule in schedules:
+        plt.plot(square_sizes, df_by_size[df_by_size["Schedule"] == schedule]["Total"], label=f"{schedule}")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Total time (microseconds)")
+    plt.legend()
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.savefig(f"plots/time_against_square_size_by_schedule.png")
+    plt.clf()
+
 if __name__ == "__main__":
     subprocess.run(["bash", "./clean_build.sh"])
     # run_deqn({"OMP_NUM_THREADS":"2"})
-    time_against_thread_count_by_function()
-    time_against_square_size_by_thread_count()
-    time_against_square_size_by_tile_size()
+    # time_against_thread_count_by_function()
+    # time_against_square_size_by_thread_count()
+    # time_against_square_size_by_tile_size()
+    time_against_square_size_by_schedule()

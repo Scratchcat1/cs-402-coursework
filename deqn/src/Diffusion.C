@@ -3,6 +3,7 @@
 #include "ExplicitScheme.h"
 #include "ExplicitSchemeSingleThread.h"
 #include "ExplicitSchemeTiles.h"
+#include "ExplicitSchemeRuntimeSchedule.h"
 
 #include <iostream>
 #include <cstdlib>
@@ -20,6 +21,8 @@ Diffusion::Diffusion(const InputFile* input, Mesh* m) :
     } else if(scheme_str.compare("explicit_tiles") == 0) {
         int tile_size = input->getInt("tileSize", 64);
         scheme = new ExplicitSchemeTiles(input, mesh, tile_size);
+    } else if(scheme_str.compare("explicit_runtime_schedule") == 0) {
+        scheme = new ExplicitSchemeRuntimeSchedule(input, mesh);
     } else {
         std::cerr << "Error: unknown scheme \"" << scheme_str << "\"" << std::endl;
         exit(1);
