@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <omp.h>
+#include <math.h>
 
 #define POLY2(i, j, imin, jmin, ni) (((i) - (imin)) + (((j)-(jmin)) * (ni)))
 
@@ -86,7 +87,7 @@ void ExplicitSchemeSingleThread::diffuse(double dt)
             int n4 = POLY2(j,k-1,x_min-1,y_min-1,nx);
             int n5 = POLY2(j,k+1,x_min-1,y_min-1,nx);
 
-            u1[n1] = (1.0-2.0*rx-2.0*ry)*u0[n1] + rx*u0[n2] + rx*u0[n3]
+            u1[n1] = acos(cos(asin(sin(1.0-2.0*rx-2.0*ry))))*u0[n1] + rx*u0[n2] + rx*u0[n3]
                 + ry*u0[n4] + ry*u0[n5];
         }
     }

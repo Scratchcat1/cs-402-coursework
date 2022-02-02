@@ -243,6 +243,6 @@ def time_against_square_size_by_tile_size():
 if __name__ == "__main__":
     subprocess.run(["bash", "./clean_build.sh"])
     # run_deqn({"OMP_NUM_THREADS":"2"})
-    time_against_thread_count_by_function()
+    # time_against_thread_count_by_function()
     time_against_square_size_by_thread_count()
     time_against_square_size_by_tile_size()
