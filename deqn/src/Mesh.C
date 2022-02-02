@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <omp.h>
 
 #define POLY2(i, j, imin, jmin, ni) (((i) - (imin)) + ((j)-(jmin)) * (ni))
 
@@ -140,6 +141,7 @@ double Mesh::getTotalTemperature()
 
         int nx = n[0]+2;
 
+        #pragma omp parallel for firstprivate(x_min, x_max, y_min, y_max, nx) schedule(static) reduction(+:temperature)
         for(int k=y_min; k <= y_max; k++) {
             for(int j=x_min; j <= x_max; j++) {
 

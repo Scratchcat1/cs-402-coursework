@@ -10,4 +10,4 @@ cd build
 #./deqn ../test/boundary_square.in
 #./deqn ../test/mega_ultra_square.in
 ./deqn ../test/12m_cache_square.in
-valgrind --tool=callgrind ./deqn ../test/mega_ultra_square.in
+valgrind --tool=callgrind ./deqn ../test/big_square.in
