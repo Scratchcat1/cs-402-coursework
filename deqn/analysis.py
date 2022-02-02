@@ -70,8 +70,20 @@ def time_against_thread_count_by_function():
         "Update Boundaries": pd.Series(dtype='float'),
         "Total": pd.Series(dtype='float')
         })
-    for thread_count in [1, 2, 4, 8, 12, 16, 32]:
-        df_for_thread_count = run_deqn(os.path.join(os.path.pardir, "test", "mega_ultra_square.in"), {"OMP_NUM_THREADS":str(thread_count)})
+    deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
+    square_size = 10000
+
+    for thread_count in [0, 1, 2, 4, 8, 12, 16, 32]:
+        deqn_config_file = DeqnConfigFile()
+        deqn_config_file.nx = square_size
+        deqn_config_file.ny = square_size
+        deqn_config_file.xmax = float(square_size)
+        deqn_config_file.ymax = float(square_size)
+        if thread_count == 0:
+            deqn_config_file.scheme = "explicit_single_thread"
+        deqn_config_file.save_to_file(deqn_config_filepath)
+
+        df_for_thread_count = run_deqn(os.path.join(os.path.pardir, deqn_config_filepath), {"OMP_NUM_THREADS":str(max(1, thread_count))})
         df_for_thread_count["Thread Count"] = thread_count
         df = pd.concat([df, df_for_thread_count], ignore_index = True)
     print(df)
