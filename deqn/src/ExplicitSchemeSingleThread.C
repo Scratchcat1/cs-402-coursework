@@ -1,5 +1,5 @@
 #include "ExplicitSchemeSingleThread.h"
-
+#include "Constants.h"
 #include <iostream>
 #include <omp.h>
 
@@ -17,17 +17,20 @@ void ExplicitSchemeSingleThread::doAdvance(const double dt)
     double start = omp_get_wtime();
     diffuse(dt);
     double end = omp_get_wtime();
-    printf("diffuse took time %f microseconds\n", (end - start) * 1e6);
 
     start = omp_get_wtime();
     reset();
     end = omp_get_wtime();
-    printf("reset took time %f microseconds\n", (end - start) * 1e6);
 
     start = omp_get_wtime();
     updateBoundaries();
     end = omp_get_wtime();
+
+    #if DEBUG_TIMINGS
+    printf("diffuse took time %f microseconds\n", (end - start) * 1e6);
+    printf("reset took time %f microseconds\n", (end - start) * 1e6);
     printf("updateBoundaries took time %f microseconds\n", (end - start) * 1e6);
+    #endif
 }
 
 void ExplicitSchemeSingleThread::updateBoundaries()
