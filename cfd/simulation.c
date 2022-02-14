@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <immintrin.h>
 #include "datadef.h"
 #include "init.h"
 
@@ -117,8 +118,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     /* Calculate sum of squares */
     for (i = 1; i <= imax; i++) {
         for (j=1; j<=jmax; j++) {
-            int is_fluid = (flag[i][j] & C_F);
-            p0 += is_fluid *p[i][j]*p[i][j];
+            if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
    
@@ -131,31 +131,46 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             for (i = 1; i <= imax; i++) {
                 for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
                     // if ((i+j) % 2 != rb) { continue; }
-                    float temp_interior_fluid;
-                    float temp_boundary_fluid;
-                    // if (flag[i][j] == (C_F | B_NSEW)) {
+                    if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
-                        temp_interior_fluid = (1.-omega)*p[i][j] - 
+                        p[i][j] = (1.-omega)*p[i][j] - 
                               beta_2*(
                                     (p[i+1][j]+p[i-1][j])*rdx2
                                   + (p[i][j+1]+p[i][j-1])*rdy2
                                   -  rhs[i][j]
                               );
-                    // } else if (flag[i][j] & C_F) { 
+                    } else if (flag[i][j] & C_F) { 
                         /* modified star near boundary */
+                        __m128i flags = _mm_set_epi32(flag[i+1][j], flag[i-1][j], flag[i][j+1], flag[i][j-1]);
+                        __m128i fluid_flags = _mm_set_epi32(C_F, C_F, C_F, C_F);
+                        __m128 eps =  _mm_cvtepi32_ps(_mm_srli_epi32(_mm_or_si128(flags, fluid_flags), 4));
+
+                        __m128 ps = _mm_set_ps(p[i+1][j], p[i-1][j], p[i][j+1], p[i][j-1]);
+                        __m128 eps_mult_ps = _mm_mul_ps(ps, eps);
+
+                        __m128 rds = _mm_set_ps(rdx2, rdx2, rdy2, rdy2);
+
+                        __m128 with_rds = _mm_mul_ps(eps_mult_ps, rds);
+                        float* f = (float*)&with_rds;
+                        float* e = (float*)&eps;
+                        u_int32_t* ff = (u_int32_t*)&fluid_flags;
+
                         beta_mod = -omega/((eps_E+eps_W)*rdx2+(eps_N+eps_S)*rdy2);
-                        temp_boundary_fluid = (1.-omega)*p[i][j] -
+                        p[i][j] = (1.-omega)*p[i][j] -
                             beta_mod*(
-                                  (eps_E*p[i+1][j]+eps_W*p[i-1][j])*rdx2
-                                + (eps_N*p[i][j+1]+eps_S*p[i][j-1])*rdy2
+                                  f[0] + f[1] + f[2] + f[3]
                                 - rhs[i][j]
                             );
-                    // }
-                    int if_interiour_fluid = (flag[i][j] == (C_F | B_NSEW));
-                    int elif_boundary_fluid = !if_interiour_fluid && (flag[i][j] & C_F);
-                    int else_solid = !if_interiour_fluid && !elif_boundary_fluid;
-                    p[i][j] = if_interiour_fluid * temp_interior_fluid + elif_boundary_fluid * temp_boundary_fluid + else_solid * p[i][j];
-
+                        // printf("%f---\n", p[i][j]);
+                        // // (eps_E*p[i+1][j]+eps_W*p[i-1][j])*rdx2
+                        // //         + (eps_N*p[i][j+1]+eps_S*p[i][j-1])*rdy2
+                        // printf("%f %f %f %f\n", eps_E*p[i+1][j] * rdx2, eps_W*p[i-1][j] * rdx2 , eps_N*p[i][j+1] * rdy2, eps_S*p[i][j-1] * rdy2);
+                        // printf("%d %d %d %d\n", eps_E, eps_W , eps_N, eps_S);
+                        // printf("%d %d %d %d\n", ff[0], ff[1] , ff[2], ff[3]);
+                        // printf("%f %f %f %f\n", f[0], f[1] , f[2], f[3]);
+                        // printf("%f %f %f %f\n", e[0], e[1] , e[2], e[3]);
+                        // printf("\n");
+                    }
                 } /* end of j */
             } /* end of i */
         } /* end of rb */
@@ -164,14 +179,28 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         *res = 0.0;
         for (i = 1; i <= imax; i++) {
             for (j = 1; j <= jmax; j++) {
-                int is_fluid = (flag[i][j] & C_F);
-                // if  {
+                // if (flag[i][j] & C_F) {
+                    // __m128i flags = _mm_set_epi32(flag[i+1][j], flag[i-1][j], flag[i][j+1], flag[i][j-1]);
+                    // __m128i fluid_flags = _mm_set_epi32(C_F, C_F, C_F, C_F);
+                    // __m128 eps =  _mm_cvtepi32_ps(_mm_srli_epi32(_mm_or_si128(flags, fluid_flags), 4));
+
+                    // __m128 ps1 = _mm_set_ps(p[i+1][j], p[i][j], p[i][j+1], p[i][j]);
+                    // __m128 ps2 = _mm_set_ps(p[i][j], p[i-1][j], p[i][j], p[i][j-1]);
+                    // __m128 eps_mult_ps = _mm_mul_ps(_mm_sub_ps(ps1, ps2), eps);
+
+                    // __m128 rds = _mm_set_ps(rdx2, rdx2, rdy2, rdy2);
+
+                    // __m128 with_rds = _mm_mul_ps(eps_mult_ps, rds);
+
+                    // float* f = (float*)&with_rds;
+                    // add = f[3] - f[2] + f[1] - f[0] -rhs[i][j];
+
                     /* only fluid cells */
                     add = (eps_E*(p[i+1][j]-p[i][j]) - 
                         eps_W*(p[i][j]-p[i-1][j])) * rdx2  +
                         (eps_N*(p[i][j+1]-p[i][j]) -
                         eps_S*(p[i][j]-p[i][j-1])) * rdy2  -  rhs[i][j];
-                    *res += is_fluid * (add*add);
+                    *res += add*add;
                 // }
             }
         }

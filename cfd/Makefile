@@ -1,5 +1,5 @@
 CC=mpicc
-CFLAGS=-O3 -Wall -g -pg 
+CFLAGS=-O3 -Wall -g -pg
 
 .c.o:
 	$(CC) -c $(CFLAGS) $<
