@@ -131,34 +131,54 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             for (i = 1; i <= imax; i++) {
                 for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
                     // if ((i+j) % 2 != rb) { continue; }
-                    float temp_interior_fluid;
+                    // float temp_interior_fluid;
                     float temp_boundary_fluid;
-                    // if (flag[i][j] == (C_F | B_NSEW)) {
-                        /* five point star for interior fluid cells */
-                        temp_interior_fluid = (1.-omega)*p[i][j] - 
-                              beta_2*(
-                                    (p[i+1][j]+p[i-1][j])*rdx2
-                                  + (p[i][j+1]+p[i][j-1])*rdy2
-                                  -  rhs[i][j]
-                              );
-                    // } else if (flag[i][j] & C_F) { 
-                        /* modified star near boundary */
-                        beta_mod = -omega/((eps_E+eps_W)*rdx2+(eps_N+eps_S)*rdy2);
-                        temp_boundary_fluid = (1.-omega)*p[i][j] -
-                            beta_mod*(
-                                  (eps_E*p[i+1][j]+eps_W*p[i-1][j])*rdx2
-                                + (eps_N*p[i][j+1]+eps_S*p[i][j-1])*rdy2
-                                - rhs[i][j]
-                            );
-                    // }
-                    int if_interiour_fluid = (flag[i][j] == (C_F | B_NSEW));
+                    int if_interiour_fluid = flag[i][j] == (C_F | B_NSEW);
                     int elif_boundary_fluid = !if_interiour_fluid && (flag[i][j] & C_F);
                     int else_solid = !if_interiour_fluid && !elif_boundary_fluid;
-                    p[i][j] = if_interiour_fluid * temp_interior_fluid + elif_boundary_fluid * temp_boundary_fluid + else_solid * p[i][j];
+
+                    int eps_factor = if_interiour_fluid + else_solid;
+                    float eps_local_E = eps_factor + elif_boundary_fluid * eps_E;
+                    float eps_local_W = eps_factor + elif_boundary_fluid * eps_W;
+                    float eps_local_S = eps_factor + elif_boundary_fluid * eps_S;
+                    float eps_local_N = eps_factor + elif_boundary_fluid * eps_N;
+
+                    beta_mod = -omega/((eps_E+eps_W)*rdx2+(eps_N+eps_S)*rdy2);
+                    float beta = if_interiour_fluid * beta_2 + elif_boundary_fluid * beta_mod;
+
+                    
+                    // temp_interior_fluid = (1.-omega)*p[i][j] - 
+                    //         beta_2*(
+                    //             (p[i+1][j]+p[i-1][j])*rdx2
+                    //             + (p[i][j+1]+p[i][j-1])*rdy2
+                    //             -  rhs[i][j]
+                    //         );
+                    // } else if (flag[i][j] & C_F) { 
+                        /* modified star near boundary */
+                    temp_boundary_fluid = (1.-omega)*p[i][j] -
+                        beta*(
+                                (eps_local_E*p[i+1][j]+eps_local_W*p[i-1][j])*rdx2
+                            + (eps_local_N*p[i][j+1]+eps_local_S*p[i][j-1])*rdy2
+                            - rhs[i][j]
+                        );
+                    // }
+                    // printf("%f\n", beta_mod);
+                    // if (if_interiour_fluid || elif_boundary_fluid) {
+                    //     p[i][j] = temp_boundary_fluid;
+                    // } else {
+                    //     printf("%f\n", eps_local_E);
+                    //     p[i][j] = p[i][j];
+                    // }
+                    p[i][j] = ((if_interiour_fluid || elif_boundary_fluid) * temp_boundary_fluid) + (else_solid * p[i][j]);
+                    // p[i][j] = (if_interiour_fluid & temp_interior_fluid) | (elif_boundary_fluid & temp_boundary_fluid) | (else_solid & p[i][j]);
+                    // if (1){
+                    // printf("%04x %04x %04x %04x %f %f %f\n", flag[i][j], if_interiour_fluid, elif_boundary_fluid, else_solid, temp_interior_fluid, temp_boundary_fluid, p[i][j]);
+                    // }
 
                 } /* end of j */
             } /* end of i */
         } /* end of rb */
+        // printf("%f", p[50][50]);
         
         /* Partial computation of residual */
         *res = 0.0;
