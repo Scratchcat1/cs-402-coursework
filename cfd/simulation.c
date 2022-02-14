@@ -117,8 +117,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     /* Calculate sum of squares */
     for (i = 1; i <= imax; i++) {
         for (j=1; j<=jmax; j++) {
-            int is_fluid = (flag[i][j] & C_F);
-            p0 += is_fluid *p[i][j]*p[i][j];
+            if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
    
@@ -131,31 +130,24 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             for (i = 1; i <= imax; i++) {
                 for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
                     // if ((i+j) % 2 != rb) { continue; }
-                    float temp_interior_fluid;
-                    float temp_boundary_fluid;
-                    // if (flag[i][j] == (C_F | B_NSEW)) {
+                    if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
-                        temp_interior_fluid = (1.-omega)*p[i][j] - 
+                        p[i][j] = (1.-omega)*p[i][j] - 
                               beta_2*(
                                     (p[i+1][j]+p[i-1][j])*rdx2
                                   + (p[i][j+1]+p[i][j-1])*rdy2
                                   -  rhs[i][j]
                               );
-                    // } else if (flag[i][j] & C_F) { 
+                    } else if (flag[i][j] & C_F) { 
                         /* modified star near boundary */
                         beta_mod = -omega/((eps_E+eps_W)*rdx2+(eps_N+eps_S)*rdy2);
-                        temp_boundary_fluid = (1.-omega)*p[i][j] -
+                        p[i][j] = (1.-omega)*p[i][j] -
                             beta_mod*(
                                   (eps_E*p[i+1][j]+eps_W*p[i-1][j])*rdx2
                                 + (eps_N*p[i][j+1]+eps_S*p[i][j-1])*rdy2
                                 - rhs[i][j]
                             );
-                    // }
-                    int if_interiour_fluid = (flag[i][j] == (C_F | B_NSEW));
-                    int elif_boundary_fluid = !if_interiour_fluid && (flag[i][j] & C_F);
-                    int else_solid = !if_interiour_fluid && !elif_boundary_fluid;
-                    p[i][j] = if_interiour_fluid * temp_interior_fluid + elif_boundary_fluid * temp_boundary_fluid + else_solid * p[i][j];
-
+                    }
                 } /* end of j */
             } /* end of i */
         } /* end of rb */
@@ -164,15 +156,14 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         *res = 0.0;
         for (i = 1; i <= imax; i++) {
             for (j = 1; j <= jmax; j++) {
-                int is_fluid = (flag[i][j] & C_F);
-                // if  {
+                if (flag[i][j] & C_F) {
                     /* only fluid cells */
                     add = (eps_E*(p[i+1][j]-p[i][j]) - 
                         eps_W*(p[i][j]-p[i-1][j])) * rdx2  +
                         (eps_N*(p[i][j+1]-p[i][j]) -
                         eps_S*(p[i][j]-p[i][j-1])) * rdy2  -  rhs[i][j];
-                    *res += is_fluid * (add*add);
-                // }
+                    *res += add*add;
+                }
             }
         }
         *res = sqrt((*res)/ifull)/p0;
