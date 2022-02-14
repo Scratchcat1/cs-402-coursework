@@ -4,6 +4,7 @@ import subprocess
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 pd.set_option('display.max_rows', None)
 
@@ -42,7 +43,10 @@ class DeqnConfigFile:
             ])
 
 def run_deqn(filepath, environment_variables = {}):
+    start = time.time()
     process_output = subprocess.run(["bash", "./run_for_python.sh", filepath], stdout=subprocess.PIPE, env={**os.environ, **environment_variables})
+    end = time.time()
+    program_total = (end - start) * 1e6
     output_lines = process_output.stdout.decode().split("\n")
 #    print(process_output.stdout)
     timing_lines = [line for line in output_lines if "seconds" in line]
@@ -53,10 +57,10 @@ def run_deqn(filepath, environment_variables = {}):
         diffuse_time = get_time_from_timing_line(timing_lines[i])
         reset_time = get_time_from_timing_line(timing_lines[i + 1])
         update_boundaries_time = get_time_from_timing_line(timing_lines[i + 2])
-        timing_results.append([i // 3, diffuse_time, reset_time, update_boundaries_time, diffuse_time + reset_time + update_boundaries_time])
+        timing_results.append([i // 3, diffuse_time, reset_time, update_boundaries_time, diffuse_time + reset_time + update_boundaries_time, program_total])
 
     # print(timing_results)
-    df = pd.DataFrame(timing_results, columns=("Iteration", "Diffuse", "Reset", "Update Boundaries", "Total"))
+    df = pd.DataFrame(timing_results, columns=("Iteration", "Diffuse", "Reset", "Update Boundaries", "Total", "Program Total"))
     # print(df)
     return df
 
@@ -68,7 +72,8 @@ def time_against_thread_count_by_function():
         "Diffuse": pd.Series(dtype='float'),
         "Reset": pd.Series(dtype='float'),
         "Update Boundaries": pd.Series(dtype='float'),
-        "Total": pd.Series(dtype='float')
+        "Total": pd.Series(dtype='float'),
+        "Program Total": pd.Series(dtype='float'),
         })
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     square_size = 10000
@@ -109,7 +114,8 @@ def time_against_square_size_by_thread_count():
         "Diffuse": pd.Series(dtype='float'),
         "Reset": pd.Series(dtype='float'),
         "Update Boundaries": pd.Series(dtype='float'),
-        "Total": pd.Series(dtype='float')
+        "Total": pd.Series(dtype='float'),
+        "Program Total": pd.Series(dtype='float'),
         })
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     
@@ -145,6 +151,18 @@ def time_against_square_size_by_thread_count():
     plt.savefig(f"plots/time_against_square_size_by_thread_count.png")
     plt.clf()
 
+    # Program time
+    for thread_count in thread_counts:
+        proportional_speedup = np.array(df_by_size[df_by_size["Thread Count"] == 0]["Program Total"]) / np.array(df_by_size[df_by_size["Thread Count"] == thread_count]["Program Total"])
+        plt.plot(square_sizes, np.around(proportional_speedup, 3), label=f"{thread_count}T")
+    plt.xlabel("Square edge length")
+    plt.ylabel("Program time (microseconds)")
+    plt.legend()
+    plt.xscale('log')
+    # plt.yscale('log')
+    plt.savefig(f"plots/speed_up_against_square_size_program_time.png")
+    plt.clf()
+
     # Speed up graph
     for thread_count in thread_counts:
         proportional_speedup = np.array(df_by_size[df_by_size["Thread Count"] == 0]["Total"]) / np.array(df_by_size[df_by_size["Thread Count"] == thread_count]["Total"])
@@ -178,7 +196,8 @@ def time_against_square_size_by_tile_size():
         "Diffuse": pd.Series(dtype='float'),
         "Reset": pd.Series(dtype='float'),
         "Update Boundaries": pd.Series(dtype='float'),
-        "Total": pd.Series(dtype='float')
+        "Total": pd.Series(dtype='float'),
+        "Program Total": pd.Series(dtype='float'),
         })
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     
@@ -249,7 +268,8 @@ def time_against_square_size_by_schedule():
         "Diffuse": pd.Series(dtype='float'),
         "Reset": pd.Series(dtype='float'),
         "Update Boundaries": pd.Series(dtype='float'),
-        "Total": pd.Series(dtype='float')
+        "Total": pd.Series(dtype='float'),
+        "Program Total": pd.Series(dtype='float'),
         })
     deqn_config_filepath = os.path.join("test", "tmp_square_by_threadcount.in")
     
