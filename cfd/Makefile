@@ -1,5 +1,5 @@
 CC=mpicc
-CFLAGS=-O3 -Wall -g -pg
+CFLAGS=-O3 -Wall -g -pg -mavx -msse4 -march=native
 
 .c.o:
 	$(CC) -c $(CFLAGS) $<
