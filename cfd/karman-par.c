@@ -238,12 +238,12 @@ int main(int argc, char *argv[])
         apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
         boundary_time_taken = MPI_Wtime() - start;
 
-        // printf("timestep_time_taken: %f\n", timestep_time_taken);
-        // printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
-        // printf("rhs_time_taken: %f\n", rhs_time_taken);
-        // printf("possion_time_taken: %f\n", possion_time_taken);
-        // printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
-        // printf("boundary_time_taken: %f\n", boundary_time_taken);
+        printf("timestep_time_taken: %f\n", timestep_time_taken);
+        printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
+        printf("rhs_time_taken: %f\n", rhs_time_taken);
+        printf("possion_time_taken: %f\n", possion_time_taken);
+        printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
+        printf("boundary_time_taken: %f\n", boundary_time_taken);
     } /* End of main loop */
   
     if (outfile != NULL && strcmp(outfile, "") != 0 && proc == 0) {
