@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &proc);
+    test_halo_sync(proc,  nprocs);
 
     delx = xlength/imax;
     dely = ylength/jmax;
@@ -230,7 +231,7 @@ int main(int argc, char *argv[])
         }
 
         start = MPI_Wtime();
-        update_velocity(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely);
+        update_velocity(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, &tile_data);
         update_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();

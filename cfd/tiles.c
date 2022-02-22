@@ -4,8 +4,10 @@
 #include <mpi.h>
 #include <stdlib.h>
 #include "tiles.h"
+#include "alloc.h"
 
-int min(int a, int b);
+#define max(x,y) ((x)>(y)?(x):(y))
+#define min(x,y) ((x)<(y)?(x):(y))
 
 void init_tile_data(int rank, int nprocs, int mesh_width, int mesh_height, struct TileData* tile_data) {
 	init_tile_shape(nprocs, mesh_width, mesh_height, tile_data);
@@ -228,6 +230,72 @@ void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
 	MPI_Type_free(&bottom_right_tile);
 }
 
-int min(int a, int b) {
-	return (a > b) ? b : a;
+void print_tile(float** array, struct TileData* tile_data)
+{
+    int i, j;
+    // printf("%s\n", title);
+    for ( i = tile_data->start_x; i < tile_data->end_x; i++) {
+        for ( j = tile_data->start_y; j < tile_data->end_y; j++) {
+            printf("%10g ", array[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 }
+
+void print_matrix(float** array, int cols, int rows)
+{
+    int i, j;
+	printf("start\n");
+    // printf("%s\n", title);
+    for ( i = 0; i < cols; i++) {
+        for ( j = 0; j < rows; j++) {
+            printf("%5g ", array[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\nEND\n");
+}
+
+void test_halo_sync(int rank, int nprocs) {
+	int COLS = 12;
+	int ROWS = 24;
+	float **matrix = alloc_floatmatrix(COLS, ROWS);
+	struct TileData tile_data;
+	int output_proc = 4;
+	int i, j;
+	init_tile_data(rank, nprocs, COLS, ROWS, &tile_data);
+	for (i = max(0, tile_data.start_x); i < min(COLS, tile_data.end_x); i++) {
+        for ( j = max(0, tile_data.start_y); j < min(ROWS, tile_data.end_y); j++) {
+			// printf("%d, %d\n", i, j);
+            matrix[i][j] = (i * ROWS) + j;
+        }
+    }
+	if (rank == output_proc) {
+		print_matrix(matrix, COLS, ROWS);
+	}
+	halo_sync(rank, matrix, &tile_data);
+	if (rank == output_proc) {
+		print_matrix(matrix, COLS, ROWS);
+	}
+
+	for (i = max(0, tile_data.start_x); i < min(COLS, tile_data.end_x); i++) {
+        for ( j = max(0, tile_data.start_y); j < min(ROWS, tile_data.end_y); j++) {
+			// printf("%d, %d\n", i, j);
+            matrix[i][j] *= -1;
+        }
+    }
+	if (rank == output_proc) {
+		print_matrix(matrix, COLS, ROWS);
+	}
+	halo_sync(rank, matrix, &tile_data);
+	if (rank == output_proc) {
+		print_matrix(matrix, COLS, ROWS);
+	}
+
+	free_matrix(matrix);
+}
+
+// int min(int a, int b) {
+// 	return (a > b) ? b : a;
+// }

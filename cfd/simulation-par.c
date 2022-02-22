@@ -77,6 +77,9 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         g[i][0]    = v[i][0];
         g[i][jmax] = v[i][jmax];
     }
+    // if (proc == 0) {
+    //     print_tile(f, tile_data);
+    // }
     halo_sync(proc, f, tile_data);
     halo_sync(proc, g, tile_data);
 }
@@ -117,11 +120,12 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     beta_2 = -omega/(2.0*(rdx2+rdy2));
 
     /* Calculate sum of squares */
-    for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
-        for (j= max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y); j++) {
+    for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x-1); i++) {
+        for (j= max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
+    printf("p0 %f\n", p0);
 
     float* recv_buffer = NULL;
     if (proc == 0) {
@@ -129,14 +133,15 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     }
     MPI_Gather(&p0, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     if (proc == 0) {
-        double p0sum = 0.0;
+        float p0sum = 0.0;
         for (i = 0; i < nprocs; i++) {
             p0sum += recv_buffer[i];
         }
         p0 = p0sum;
+        free(recv_buffer);
+        printf("sump0 %f\n", p0);
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-    free(recv_buffer);
    
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
@@ -190,14 +195,16 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         if (proc == 0) {
             recv_buffer = malloc(sizeof(float) * nprocs);
         }
-        MPI_Gather(&res, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        MPI_Gather(res, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
         if (proc == 0) {
-            double res_sum = 0.0;
+            float res_sum = 0.0;
             for (i = 0; i < nprocs; i++) {
                 res_sum += recv_buffer[i];
             }
+            free(recv_buffer);
             *res = res_sum;
             *res = sqrt((*res)/ifull)/p0;
+            printf("res %f p0 %f\n", *res, p0);
         }
         MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
@@ -213,26 +220,28 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
  * velocity values and the new pressure matrix
  */
 void update_velocity(float **u, float **v, float **f, float **g, float **p,
-    char **flag, int imax, int jmax, float del_t, float delx, float dely)
+    char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
 
-    for (i=1; i<=imax-1; i++) {
-        for (j=1; j<=jmax; j++) {
+    for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
             }
         }
     }
-    for (i=1; i<=imax; i++) {
-        for (j=1; j<=jmax-1; j++) {
+    for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
             }
         }
     }
+    halo_sync(proc, u, tile_data);
+    halo_sync(proc, v, tile_data);
 }
 
 
@@ -251,13 +260,13 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
     if (tau >= 1.0e-10) { /* else no time stepsize control */
         umax_local = 1.0e-10;
         vmax_local = 1.0e-10; 
-        for (i=tile_data->start_x; i<=tile_data->end_x - 1; i++) {
-            for (j=max(1, tile_data->start_y); j<=tile_data->end_y - 1; j++) {
+        for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x); i++) {
+            for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y); j++) {
                 umax_local = max(fabs(u[i][j]), umax_local);
             }
         }
-        for (i=max(1, tile_data->start_x); i<=tile_data->end_x - 1; i++) {
-            for (j=tile_data->start_y; j<=tile_data->end_y - 1; j++) {
+        for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x); i++) {
+            for (j=tile_data->start_y; j<=min(jmax+1, tile_data->end_y); j++) {
                 vmax_local = max(fabs(v[i][j]), vmax_local);
             }
         }
@@ -295,4 +304,5 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
         }
         *del_t = tau * (*del_t); /* multiply by safety factor */
     }
+    printf("delt %f\n", *del_t);
 }

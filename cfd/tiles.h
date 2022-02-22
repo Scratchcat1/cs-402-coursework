@@ -28,4 +28,6 @@ void free_tile_data(struct TileData* tile_data);
 
 void halo_sync(int rank, float **array, struct TileData* tile_data);
 void sync_tile_to_root(int rank, float** array, struct TileData* tile_data);
+void print_tile(float** array, struct TileData* tile_data);
+void test_halo_sync(int rank, int nprocs);
 #endif
