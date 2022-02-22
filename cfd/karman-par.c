@@ -8,7 +8,7 @@
 #include "boundary.h"
 #include "datadef.h"
 #include "init.h"
-#include "simulation.h"
+#include "simulation-par.h"
 #include "tiles.h"
 
 void write_bin(float **u, float **v, float **p, char **flag,
@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
     for (t = 0.0; t < t_end; t += del_t, iters++) {
         printf("\n --- Timestep %f of %f ---\n", t, t_end);
         start = MPI_Wtime();
-        set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau);
+        set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau, &tile_data);
         timestep_time_taken = MPI_Wtime() - start;
 
         ifluid = (imax * jmax) - ibound;

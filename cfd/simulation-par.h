@@ -1,3 +1,6 @@
+#ifndef __simulation_par_h_
+#define __simulation_par_h_
+#include "tiles.h"
 void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
     float gamma, float Re);
@@ -13,4 +16,5 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely);
 
 void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
-    float dely, float **u, float **v, float Re, float tau);
+    float dely, float **u, float **v, float Re, float tau, struct TileData* tile_data);
+#endif

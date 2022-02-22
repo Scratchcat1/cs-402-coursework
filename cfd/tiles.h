@@ -1,3 +1,5 @@
+#ifndef __tiles_h_
+#define __tiles_h_
 #include <mpi.h>
 
 struct TileData {
@@ -23,3 +25,4 @@ void init_tile_datatypes(struct TileData* tile_data);
 void free_tile_data(struct TileData* tile_data);
 
 void halo_sync(int rank, float **array, struct TileData* tile_data);
+#endif

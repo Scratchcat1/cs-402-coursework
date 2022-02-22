@@ -4,7 +4,6 @@
 #include <mpi.h>
 #include "datadef.h"
 #include "init.h"
-#include "tiles.h"
 
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
@@ -286,45 +285,25 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
  * timestep). Otherwise the simulation becomes unstable.
  */
 void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
-    float dely, float **u, float **v, float Re, float tau, struct TileData* tile_data)
+    float dely, float **u, float **v, float Re, float tau)
 {
     int i, j;
-    float umax, vmax, umax_local, vmax_local, deltu, deltv, deltRe; 
+    float umax, vmax, deltu, deltv, deltRe; 
 
     /* del_t satisfying CFL conditions */
     if (tau >= 1.0e-10) { /* else no time stepsize control */
-        umax_local = 1.0e-10;
-        vmax_local = 1.0e-10; 
-        for (i=tile_data->start_x; i<=tile_data->end_x - 1; i++) {
-            for (j=max(1, tile_data->start_y); j<=tile_data->end_y - 1; j++) {
-                umax_local = max(fabs(u[i][j]), umax_local);
+        umax = 1.0e-10;
+        vmax = 1.0e-10; 
+        for (i=0; i<=imax+1; i++) {
+            for (j=1; j<=jmax+1; j++) {
+                umax = max(fabs(u[i][j]), umax);
             }
         }
-        for (i=max(1, tile_data->start_x); i<=tile_data->end_x - 1; i++) {
-            for (j=tile_data->start_y; j<=tile_data->end_y - 1; j++) {
-                vmax_local = max(fabs(v[i][j]), vmax_local);
+        for (i=1; i<=imax+1; i++) {
+            for (j=0; j<=jmax+1; j++) {
+                vmax = max(fabs(v[i][j]), vmax);
             }
         }
-
-        float max_buffer[2];
-        max_buffer[0] = umax_local;
-        max_buffer[1] = vmax_local;
-        float* recv_buffer = NULL;
-        if (proc == 0) {
-            recv_buffer = malloc(sizeof(float) * 2 * nprocs);
-        }
-        MPI_Gather(&max_buffer, 2, MPI_FLOAT, recv_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        umax = recv_buffer[0];
-        vmax = recv_buffer[1];
-        for (i = 0; i < nprocs * 2; i += 2) {
-            umax = max(umax, recv_buffer[i]);
-            vmax = max(vmax, recv_buffer[i + 1]);
-        }
-        max_buffer[0] = umax;
-        max_buffer[1] = vmax;
-        MPI_Bcast(&max_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        umax = max_buffer[0];
-        vmax = max_buffer[1];
 
         deltu = delx/umax;
         deltv = dely/vmax; 
