@@ -212,13 +212,13 @@ int main(int argc, char *argv[])
         compute_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
-        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely);
+        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely, &tile_data);
         rhs_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
         if (ifluid > 0) {
             itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
-                    eps, itermax, omega, &res, ifluid);
+                    eps, itermax, omega, &res, ifluid, &tile_data);
         } else {
             itersor = 0;
         }

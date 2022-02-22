@@ -84,12 +84,11 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
 
 /* Calculate the right hand side of the pressure equation */
 void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
-    int jmax, float del_t, float delx, float dely)
+    int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
-
-    for (i=1;i<=imax;i++) {
-        for (j=1;j<=jmax;j++) {
+    for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x);i++) {
+        for (j=max(1, tile_data->start_y);j<=min(jmax, tile_data->end_y);j++) {
             if (flag[i][j] & C_F) {
                 /* only for fluid and non-surface cells */
                 rhs[i][j] = (
@@ -99,12 +98,13 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
             }
         }
     }
+    halo_sync(proc, rhs, tile_data);
 }
 
 /* Red/Black SOR to solve the poisson equation */
 int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float delx, float dely, float eps, int itermax, float omega,
-    float *res, int ifull)
+    float *res, int ifull, struct TileData* tile_data)
 {
     int i, j, iter;
     float add, beta_2, beta_mod;
@@ -117,11 +117,25 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     beta_2 = -omega/(2.0*(rdx2+rdy2));
 
     /* Calculate sum of squares */
-    for (i = 1; i <= imax; i++) {
-        for (j=1; j<=jmax; j++) {
+    for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
+        for (j= max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y); j++) {
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
+
+    float* recv_buffer = NULL;
+    if (proc == 0) {
+        recv_buffer = malloc(sizeof(float) * nprocs);
+    }
+    MPI_Gather(&p0, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    if (proc == 0) {
+        double p0sum = 0.0;
+        for (i = 0; i < nprocs; i++) {
+            p0sum += recv_buffer[i];
+        }
+        p0 = p0sum;
+    }
+    MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
