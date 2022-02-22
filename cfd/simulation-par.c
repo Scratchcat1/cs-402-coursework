@@ -98,85 +98,8 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
     }
 }
 
-
 /* Red/Black SOR to solve the poisson equation */
 int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
-    float delx, float dely, float eps, int itermax, float omega,
-    float *res, int ifull)
-{
-    int i, j, iter;
-    float add, beta_2, beta_mod;
-    float p0 = 0.0;
-    
-    int rb; /* Red-black value. */
-
-    float rdx2 = 1.0/(delx*delx);
-    float rdy2 = 1.0/(dely*dely);
-    beta_2 = -omega/(2.0*(rdx2+rdy2));
-
-    /* Calculate sum of squares */
-    for (i = 1; i <= imax; i++) {
-        for (j=1; j<=jmax; j++) {
-            if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
-        }
-    }
-   
-    p0 = sqrt(p0/ifull);
-    if (p0 < 0.0001) { p0 = 1.0; }
-
-    /* Red/Black SOR-iteration */
-    for (iter = 0; iter < itermax; iter++) {
-        for (rb = 0; rb <= 1; rb++) {
-            for (i = 1; i <= imax; i++) {
-                for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
-                    // if ((i+j) % 2 != rb) { continue; }
-                    if (flag[i][j] == (C_F | B_NSEW)) {
-                        /* five point star for interior fluid cells */
-                        p[i][j] = (1.-omega)*p[i][j] - 
-                              beta_2*(
-                                    (p[i+1][j]+p[i-1][j])*rdx2
-                                  + (p[i][j+1]+p[i][j-1])*rdy2
-                                  -  rhs[i][j]
-                              );
-                    } else if (flag[i][j] & C_F) { 
-                        /* modified star near boundary */
-                        beta_mod = -omega/((eps_E+eps_W)*rdx2+(eps_N+eps_S)*rdy2);
-                        p[i][j] = (1.-omega)*p[i][j] -
-                            beta_mod*(
-                                  (eps_E*p[i+1][j]+eps_W*p[i-1][j])*rdx2
-                                + (eps_N*p[i][j+1]+eps_S*p[i][j-1])*rdy2
-                                - rhs[i][j]
-                            );
-                    }
-                } /* end of j */
-            } /* end of i */
-        } /* end of rb */
-        
-        /* Partial computation of residual */
-        *res = 0.0;
-        for (i = 1; i <= imax; i++) {
-            for (j = 1; j <= jmax; j++) {
-                if (flag[i][j] & C_F) {
-                    /* only fluid cells */
-                    add = (eps_E*(p[i+1][j]-p[i][j]) - 
-                        eps_W*(p[i][j]-p[i-1][j])) * rdx2  +
-                        (eps_N*(p[i][j+1]-p[i][j]) -
-                        eps_S*(p[i][j]-p[i][j-1])) * rdy2  -  rhs[i][j];
-                    *res += add*add;
-                }
-            }
-        }
-        *res = sqrt((*res)/ifull)/p0;
-
-        /* convergence? */
-        if (*res<eps) break;
-    } /* end of iter */
-
-    return iter;
-}
-
-/* Red/Black SOR to solve the poisson equation */
-int mpi_poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float delx, float dely, float eps, int itermax, float omega,
     float *res, int ifull)
 {

@@ -157,6 +157,14 @@ int main(int argc, char **argv)
             dflags = flags1[j] - flags2[j];
             switch (mode) {
                 case MODE_DIFF:
+                    if(fpclassify(du) == FP_NAN ||
+                        fpclassify(dv) == FP_NAN ||
+                        fpclassify(dp) == FP_NAN ||
+                        fpclassify(du) == FP_INFINITE ||
+                        fpclassify(dv) == FP_INFINITE ||
+                        fpclassify(dp) == FP_INFINITE) {
+                        diff_found = 1;
+                    }
                     if (fabs(du) > epsilon || fabs(dv) > epsilon ||
                         fabs(dp) > epsilon || fabs(dflags) > epsilon) {
                         diff_found = 1; 

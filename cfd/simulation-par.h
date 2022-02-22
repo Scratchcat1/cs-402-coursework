@@ -9,10 +9,6 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float delx, float dely, float eps, int itermax, float omega,
     float *res, int ifull);
 
-int mpi_poisson(float **p, float **rhs, char **flag, int imax, int jmax,
-    float delx, float dely, float eps, int itermax, float omega,
-    float *res, int ifull);
-
 void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely);
 

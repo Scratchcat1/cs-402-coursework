@@ -9,6 +9,7 @@
 #include "datadef.h"
 #include "init.h"
 #include "simulation.h"
+#include "tiles.h"
 
 void write_bin(float **u, float **v, float **p, char **flag,
      int imax, int jmax, float xlength, float ylength, char *file);
@@ -77,7 +78,6 @@ int main(int argc, char *argv[])
     char  **flag;
     int init_case, iters = 0;
     int show_help = 0, show_usage = 0, show_version = 0;
-    int single_thread_mode = 0;
 
     progname = argv[0];
     infile = strdup("karman.bin");
@@ -115,9 +115,6 @@ int main(int argc, char *argv[])
             case 't':
                 t_end = atof(optarg);
                 break;
-            case 's':
-                single_thread_mode = 1;
-                break;
             default:
                 show_usage = 1;
         }
@@ -141,9 +138,9 @@ int main(int argc, char *argv[])
 
     double program_start = MPI_Wtime();
 
-    // MPI_Init(&argc, &argv);
-    // MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-    // MPI_Comm_rank(MPI_COMM_WORLD, &proc);
+    MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD, &proc);
 
     delx = xlength/imax;
     dely = ylength/jmax;
@@ -155,7 +152,22 @@ int main(int argc, char *argv[])
     g    = alloc_floatmatrix(imax+2, jmax+2);
     p    = alloc_floatmatrix(imax+2, jmax+2);
     rhs  = alloc_floatmatrix(imax+2, jmax+2); 
-    flag = alloc_charmatrix(imax+2, jmax+2);                    
+    flag = alloc_charmatrix(imax+2, jmax+2);      
+
+    struct TileData tile_data;
+    init_tile_data(proc, nprocs, imax + 2, jmax + 2, &tile_data);
+    printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]"
+        , proc, 
+        tile_data.num_x, 
+        tile_data.num_y, 
+        tile_data.width, 
+        tile_data.height, 
+        tile_data.pos_x, 
+        tile_data.pos_y,
+        tile_data.start_x,
+        tile_data.end_x,
+        tile_data.start_y,
+        tile_data.end_y);
 
     if (!u || !v || !f || !g || !p || !rhs || !flag) {
         fprintf(stderr, "Couldn't allocate memory for matrices.\n");
@@ -204,13 +216,8 @@ int main(int argc, char *argv[])
 
         start = MPI_Wtime();
         if (ifluid > 0) {
-            if (single_thread_mode) {
-                itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
-                        eps, itermax, omega, &res, ifluid);
-            } else {
-                itersor = mpi_poisson(p, rhs, flag, imax, jmax, delx, dely,
-                        eps, itermax, omega, &res, ifluid);
-            }
+            itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
+                    eps, itermax, omega, &res, ifluid);
         } else {
             itersor = 0;
         }
