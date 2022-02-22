@@ -69,7 +69,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     }
 
     /* f & g at external boundaries */
-    for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax-1); j++) {
+    for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax); j++) {
         f[0][j]    = u[0][j];
         f[imax][j] = u[imax][j];
     }
@@ -151,7 +151,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         for (rb = 0; rb <= 1; rb++) {
             for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
                 int j_start = max(1, tile_data->start_y);
-                for (j = j_start; j <= min(jmax, tile_data->start_x); j += 1) {
+                for (j = j_start; j <= min(jmax, tile_data->end_y); j += 1) {
                     if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
@@ -252,7 +252,6 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
 void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
     float dely, float **u, float **v, float Re, float tau, struct TileData* tile_data)
 {
-    // MPI_Barrier(MPI_COMM_WORLD);
     int i, j;
     float umax, vmax, umax_local, vmax_local, deltu, deltv, deltRe; 
 

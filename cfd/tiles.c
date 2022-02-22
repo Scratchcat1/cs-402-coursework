@@ -52,6 +52,8 @@ void init_tile_shape(int nprocs, int mesh_width, int mesh_height, struct TileDat
 					tile_data->num_y = tiles_num_y;
 					tile_data->width = tile_width_current;
 					tile_data->height = tile_height_current;
+					tile_data->std_width = tile_width_current;
+					tile_data->std_height = tile_height_current;
 				}
 			}
 		}	
@@ -70,6 +72,8 @@ void init_tile_start_end(struct TileData* tile_data) {
 	tile_data->start_y = tile_data->pos_y * tile_data->height;
 	tile_data->end_x = min(tile_data->start_x + tile_data->width, tile_data->mesh_width);
 	tile_data->end_y = min(tile_data->start_y + tile_data->height, tile_data->mesh_height);
+	tile_data->width = tile_data->end_x - tile_data->start_x;
+	tile_data->height = tile_data->end_y - tile_data->start_y;
 }
 
 void init_tile_datatypes(struct TileData* tile_data) {
@@ -160,15 +164,15 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 
 void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
 	MPI_Datatype full_tile, right_tile, bottom_tile, bottom_right_tile;
-	int right_tile_width = tile_data->width- (tile_data->width * tile_data->num_x - tile_data->mesh_width);
-	int bottom_tile_height = tile_data->height-(tile_data->height * tile_data->num_y - tile_data->mesh_height);
-	MPI_Type_vector(tile_data->width, tile_data->height, tile_data->mesh_height, MPI_FLOAT, &full_tile);
+	int right_tile_width = tile_data->std_width- (tile_data->std_width * tile_data->num_x - tile_data->mesh_width);
+	int bottom_tile_height = tile_data->std_height-(tile_data->std_height * tile_data->num_y - tile_data->mesh_height);
+	MPI_Type_vector(tile_data->std_width, tile_data->std_height, tile_data->mesh_height, MPI_FLOAT, &full_tile);
     MPI_Type_commit(&full_tile);
 
-	MPI_Type_vector(right_tile_width, tile_data->height, tile_data->mesh_height, MPI_FLOAT, &right_tile);
+	MPI_Type_vector(right_tile_width, tile_data->std_height, tile_data->mesh_height, MPI_FLOAT, &right_tile);
     MPI_Type_commit(&right_tile);
 
-	MPI_Type_vector(tile_data->width, bottom_tile_height, tile_data->mesh_height, MPI_FLOAT, &bottom_tile);
+	MPI_Type_vector(tile_data->std_width, bottom_tile_height, tile_data->mesh_height, MPI_FLOAT, &bottom_tile);
     MPI_Type_commit(&bottom_tile);
 
 	MPI_Type_vector(right_tile_width, bottom_tile_height, tile_data->mesh_height, MPI_FLOAT, &bottom_right_tile);
@@ -193,9 +197,9 @@ void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
 			} else {
 				dtype = &full_tile;
 			}
-			int other_start_x = other_pos_x * tile_data->width;
-			int other_start_y = other_pos_y * tile_data->height;
-			printf("Receiving %d with pos %dx%d. Location vals r%d, b%d, rr%d, bb%d. Start is %dx%d.\n", rank, other_pos_x, other_pos_y, on_right, on_bottom, right_tile_width, bottom_tile_height, other_start_x, other_start_y);
+			int other_start_x = other_pos_x * tile_data->std_width;
+			int other_start_y = other_pos_y * tile_data->std_height;
+			// printf("Receiving %d with pos %dx%d. Location vals r%d, b%d, rr%d, bb%d. Start is %dx%d.\n", rank, other_pos_x, other_pos_y, on_right, on_bottom, right_tile_width, bottom_tile_height, other_start_x, other_start_y);
 			// printf("%ld %ld", &array[0][0], &array[0][1]);
 			MPI_Irecv(&array[other_start_x][other_start_y], 1, *dtype, other_rank, 0, MPI_COMM_WORLD, &requests[other_rank]);
 
@@ -262,7 +266,7 @@ void test_halo_sync(int rank, int nprocs) {
 	int ROWS = 24;
 	float **matrix = alloc_floatmatrix(COLS, ROWS);
 	struct TileData tile_data;
-	int output_proc = 4;
+	int output_proc = 17;
 	int i, j;
 	init_tile_data(rank, nprocs, COLS, ROWS, &tile_data);
 	for (i = max(0, tile_data.start_x); i < min(COLS, tile_data.end_x); i++) {

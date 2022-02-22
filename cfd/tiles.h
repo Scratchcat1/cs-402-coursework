@@ -7,6 +7,8 @@ struct TileData {
 	int num_y;
 	int width;
 	int height;
+	int std_width;
+	int std_height;
 	int pos_x;
 	int pos_y;
 	int start_x;

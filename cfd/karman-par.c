@@ -170,7 +170,12 @@ int main(int argc, char *argv[])
         tile_data.start_y,
         tile_data.end_y);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("hi\n");
+
     halo_sync(proc, u, &tile_data);
+    MPI_Barrier(MPI_COMM_WORLD);
+        printf("ok\n");
 
     if (!u || !v || !f || !g || !p || !rhs || !flag) {
         fprintf(stderr, "Couldn't allocate memory for matrices.\n");
@@ -236,6 +241,8 @@ int main(int argc, char *argv[])
 
         start = MPI_Wtime();
         apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
+        halo_sync(proc, u, &tile_data);
+        halo_sync(proc, v, &tile_data);
         boundary_time_taken = MPI_Wtime() - start;
         printf("\n --- Timestep %f of %f ---\n", t, t_end);
         printf("timestep_time_taken: %f\n", timestep_time_taken);
