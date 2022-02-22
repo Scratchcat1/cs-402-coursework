@@ -3,7 +3,7 @@
 #include "tiles.h"
 void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
-    float gamma, float Re);
+    float gamma, float Re, struct TileData* tile_data);
 
 void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
     int jmax, float del_t, float delx, float dely);

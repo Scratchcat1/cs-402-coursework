@@ -200,7 +200,6 @@ int main(int argc, char *argv[])
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
     /* Main loop */
     for (t = 0.0; t < t_end; t += del_t, iters++) {
-        printf("\n --- Timestep %f of %f ---\n", t, t_end);
         start = MPI_Wtime();
         set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau, &tile_data);
         timestep_time_taken = MPI_Wtime() - start;
@@ -209,7 +208,7 @@ int main(int argc, char *argv[])
 
         start = MPI_Wtime();
         compute_tentative_velocity(u, v, f, g, flag, imax, jmax,
-            del_t, delx, dely, gamma, Re);
+            del_t, delx, dely, gamma, Re, &tile_data);
         compute_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
@@ -237,7 +236,7 @@ int main(int argc, char *argv[])
         start = MPI_Wtime();
         apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
         boundary_time_taken = MPI_Wtime() - start;
-
+        printf("\n --- Timestep %f of %f ---\n", t, t_end);
         printf("timestep_time_taken: %f\n", timestep_time_taken);
         printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
         printf("rhs_time_taken: %f\n", rhs_time_taken);
@@ -245,6 +244,12 @@ int main(int argc, char *argv[])
         printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
         printf("boundary_time_taken: %f\n", boundary_time_taken);
     } /* End of main loop */
+    
+    sync_tile_to_root(proc, u, &tile_data);
+    sync_tile_to_root(proc, v, &tile_data);
+    sync_tile_to_root(proc, f, &tile_data);
+    sync_tile_to_root(proc, g, &tile_data);
+    sync_tile_to_root(proc, p, &tile_data);
   
     if (outfile != NULL && strcmp(outfile, "") != 0 && proc == 0) {
         write_bin(u, v, p, flag, imax, jmax, xlength, ylength, outfile);

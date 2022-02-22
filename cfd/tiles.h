@@ -15,14 +15,17 @@ struct TileData {
 	int end_y;
 	MPI_Datatype tilecoltype;
 	MPI_Datatype tilerowtype;
+	int mesh_height;
+	int mesh_width;
 };
 
 void init_tile_data(int rank, int nprocs, int mesh_width, int mesh_height, struct TileData* tile_data);
 void init_tile_shape(int nprocs, int mesh_width, int mesh_height, struct TileData* tile_data);
 void init_tile_pos(int rank, struct TileData* tile_data);
-void init_tile_start_end(int mesh_width, int mesh_height, struct TileData* tile_data);
+void init_tile_start_end(struct TileData* tile_data);
 void init_tile_datatypes(struct TileData* tile_data);
 void free_tile_data(struct TileData* tile_data);
 
 void halo_sync(int rank, float **array, struct TileData* tile_data);
+void sync_tile_to_root(int rank, float** array, struct TileData* tile_data);
 #endif

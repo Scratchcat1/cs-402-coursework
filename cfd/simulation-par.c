@@ -14,13 +14,13 @@ extern int nprocs, proc;
 /* Computation of tentative velocity field (f, g) */
 void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
-    float gamma, float Re)
+    float gamma, float Re, struct TileData* tile_data)
 {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
 
-    for (i=1; i<=imax-1; i++) {
-        for (j=1; j<=jmax; j++) {
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x,imax-1); i++) { // i=1 i <=imax -1
+        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax); j++) { // j=1 j <=jmax
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
@@ -43,8 +43,8 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         }
     }
 
-    for (i=1; i<=imax; i++) {
-        for (j=1; j<=jmax-1; j++) {
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x, imax); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax-1); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
@@ -69,14 +69,16 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     }
 
     /* f & g at external boundaries */
-    for (j=1; j<=jmax; j++) {
+    for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax-1); j++) {
         f[0][j]    = u[0][j];
         f[imax][j] = u[imax][j];
     }
-    for (i=1; i<=imax; i++) {
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x, imax); i++) {
         g[i][0]    = v[i][0];
         g[i][jmax] = v[i][jmax];
     }
+    halo_sync(proc, f, tile_data);
+    halo_sync(proc, g, tile_data);
 }
 
 
