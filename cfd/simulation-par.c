@@ -136,6 +136,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         p0 = p0sum;
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+    free(recv_buffer);
    
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
@@ -143,9 +144,10 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     /* Red/Black SOR-iteration */
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
-            for (i = 1; i <= imax; i++) {
-                for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
-                    // if ((i+j) % 2 != rb) { continue; }
+            for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
+                int j_start = max(1, tile_data->start_y);
+                for (j = j_start; j <= min(jmax, tile_data->start_x); j += 1) {
+                    if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 
@@ -166,12 +168,13 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                     }
                 } /* end of j */
             } /* end of i */
+            halo_sync(proc, p, tile_data);
         } /* end of rb */
         
         /* Partial computation of residual */
         *res = 0.0;
-        for (i = 1; i <= imax; i++) {
-            for (j = 1; j <= jmax; j++) {
+        for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
+            for (j = max(1, tile_data->start_y); j <= min(jmax, tile_data->end_y); j++) {
                 if (flag[i][j] & C_F) {
                     /* only fluid cells */
                     add = (eps_E*(p[i+1][j]-p[i][j]) - 
@@ -182,7 +185,21 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                 }
             }
         }
-        *res = sqrt((*res)/ifull)/p0;
+
+        recv_buffer = NULL;
+        if (proc == 0) {
+            recv_buffer = malloc(sizeof(float) * nprocs);
+        }
+        MPI_Gather(&res, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+        if (proc == 0) {
+            double res_sum = 0.0;
+            for (i = 0; i < nprocs; i++) {
+                res_sum += recv_buffer[i];
+            }
+            *res = res_sum;
+            *res = sqrt((*res)/ifull)/p0;
+        }
+        MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
         /* convergence? */
         if (*res<eps) break;
