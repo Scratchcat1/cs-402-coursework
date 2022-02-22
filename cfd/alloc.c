@@ -7,6 +7,7 @@
 float **alloc_floatmatrix(int cols, int rows)
 {
     int i;
+    // printf("%d %d---\n", cols, rows);
     float **m;
     if ((m = (float**) malloc(cols*sizeof(float*))) == NULL) {
         return NULL;

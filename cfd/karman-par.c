@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 
     struct TileData tile_data;
     init_tile_data(proc, nprocs, imax + 2, jmax + 2, &tile_data);
-    printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]"
+    printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]\n"
         , proc, 
         tile_data.num_x, 
         tile_data.num_y, 
@@ -168,6 +168,8 @@ int main(int argc, char *argv[])
         tile_data.end_x,
         tile_data.start_y,
         tile_data.end_y);
+
+    halo_sync(proc, u, &tile_data);
 
     if (!u || !v || !f || !g || !p || !rhs || !flag) {
         fprintf(stderr, "Couldn't allocate memory for matrices.\n");
@@ -236,12 +238,12 @@ int main(int argc, char *argv[])
         apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
         boundary_time_taken = MPI_Wtime() - start;
 
-        printf("timestep_time_taken: %f\n", timestep_time_taken);
-        printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
-        printf("rhs_time_taken: %f\n", rhs_time_taken);
-        printf("possion_time_taken: %f\n", possion_time_taken);
-        printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
-        printf("boundary_time_taken: %f\n", boundary_time_taken);
+        // printf("timestep_time_taken: %f\n", timestep_time_taken);
+        // printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
+        // printf("rhs_time_taken: %f\n", rhs_time_taken);
+        // printf("possion_time_taken: %f\n", possion_time_taken);
+        // printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
+        // printf("boundary_time_taken: %f\n", boundary_time_taken);
     } /* End of main loop */
   
     if (outfile != NULL && strcmp(outfile, "") != 0 && proc == 0) {
@@ -257,6 +259,7 @@ int main(int argc, char *argv[])
     free_matrix(flag);
 
     printf("Program total time: %f", MPI_Wtime() - program_start);
+    MPI_Finalize();
     return 0;
 }
 

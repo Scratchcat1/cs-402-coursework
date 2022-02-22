@@ -10,6 +10,7 @@ void init_tile_data(int rank, int nprocs, int mesh_width, int mesh_height, struc
 	init_tile_shape(nprocs, mesh_width, mesh_height, tile_data);
 	init_tile_pos(rank, tile_data);
 	init_tile_start_end(mesh_width, mesh_height, tile_data);
+	init_tile_datatypes(tile_data);
 }
 
 void init_tile_shape(int nprocs, int mesh_width, int mesh_height, struct TileData* tile_data) {
@@ -67,9 +68,9 @@ void init_tile_start_end(int mesh_width, int mesh_height, struct TileData* tile_
 }
 
 void init_tile_datatypes(struct TileData* tile_data) {
-    MPI_Type_vector(tile_data->height, 1, tile_data->width, MPI_FLOAT, &tile_data->tilecoltype);
+	MPI_Type_contiguous(tile_data->height, MPI_FLOAT, &tile_data->tilecoltype);
     MPI_Type_commit(&tile_data->tilecoltype);
-    MPI_Type_contiguous(tile_data->width, MPI_FLOAT, &tile_data->tilerowtype);
+	MPI_Type_vector(tile_data->width, 1, tile_data->height, MPI_FLOAT, &tile_data->tilerowtype);
     MPI_Type_commit(&tile_data->tilerowtype);
 }
 
@@ -80,31 +81,37 @@ void free_tile_data(struct TileData* tile_data) {
 
 
 void halo_sync(int rank, float **array, struct TileData* tile_data) {
+	// MPI_Barrier(MPI_COMM_WORLD);
+	double start = MPI_Wtime();
 	MPI_Request requests[8];
 	int requests_pos = 0;
 	// No -1 after end_? as the range is non inclusive, so end_? is from the next tile.
-
+	// printf("Rank %d checking in\n", rank);
 	// Receive the data asynchronously to avoid a deadlock and improve performance
 	if (tile_data->pos_x > 0) {
 		// There is a tile to the left
 		MPI_Irecv(&array[tile_data->start_x-1][tile_data->start_y], 1, tile_data->tilecoltype, rank - 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, getting from %d\n", rank, rank - 1);
 		requests_pos++;
 	}
 	if (tile_data->pos_x < tile_data->num_x - 1) {
 		// There is a tile to the right
 		MPI_Irecv(&array[tile_data->end_x][tile_data->start_y], 1, tile_data->tilecoltype, rank + 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, rank + 1, tile_data->end_x, tile_data->start_y);
 		requests_pos++;
 	}
 	if (tile_data->pos_y > 0) {
 		// There is a tile above
 		int target_rank = rank - tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->start_y - 1], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, getting from %d\n", rank, target_rank);
 		requests_pos++;
 	}
 	if (tile_data->pos_y < tile_data->num_y - 1) {
 		// There is a tile below
 		int target_rank = rank + tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->end_y], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, getting from %d\n", rank, target_rank);
 		requests_pos++;
 	}
 
@@ -112,23 +119,27 @@ void halo_sync(int rank, float **array, struct TileData* tile_data) {
 	if (tile_data->pos_x > 0) {
 		// There is a tile to the left
 		MPI_Isend(&array[tile_data->start_x][tile_data->start_y], 1, tile_data->tilecoltype, rank - 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, sending to %d\n", rank, rank - 1);
 		requests_pos++;
 	}
 	if (tile_data->pos_x < tile_data->num_x - 1) {
 		// There is a tile to the right
 		MPI_Isend(&array[tile_data->end_x - 1][tile_data->start_y], 1, tile_data->tilecoltype, rank + 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, sending to %d\n", rank, rank + 1);
 		requests_pos++;
 	}
 	if (tile_data->pos_y > 0) {
 		// There is a tile above
 		int target_rank = rank - tile_data->num_x;
 		MPI_Isend(&array[tile_data->start_x][tile_data->start_y], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, sending to %d\n", rank, target_rank);
 		requests_pos++;
 	}
 	if (tile_data->pos_y < tile_data->num_y - 1) {
 		// There is a tile below
 		int target_rank = rank + tile_data->num_x;
 		MPI_Isend(&array[tile_data->start_x][tile_data->end_y - 1], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		// printf("I am %d, sending to %d\n", rank, target_rank);
 		requests_pos++;
 	}
 
@@ -138,6 +149,8 @@ void halo_sync(int rank, float **array, struct TileData* tile_data) {
 		MPI_Wait(&requests[i], &s);
 		// TODO check s is ok
 	}
+	printf("Sync for %d took %f seconds\n", rank, MPI_Wtime() - start);
+	// MPI_Barrier(MPI_COMM_WORLD);
 }
 
 int min(int a, int b) {
