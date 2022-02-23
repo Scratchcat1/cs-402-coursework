@@ -170,13 +170,6 @@ int main(int argc, char *argv[])
         tile_data.start_y,
         tile_data.end_y);
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    printf("hi\n");
-
-    halo_sync(proc, u, &tile_data);
-    MPI_Barrier(MPI_COMM_WORLD);
-        printf("ok\n");
-
     if (!u || !v || !f || !g || !p || !rhs || !flag) {
         fprintf(stderr, "Couldn't allocate memory for matrices.\n");
         return 1;
@@ -270,6 +263,7 @@ int main(int argc, char *argv[])
     free_matrix(p);
     free_matrix(rhs);
     free_matrix(flag);
+    free_tile_data(&tile_data);
 
     printf("Program total time: %f", MPI_Wtime() - program_start);
     MPI_Finalize();

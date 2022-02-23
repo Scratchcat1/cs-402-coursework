@@ -19,8 +19,8 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
 
-    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x,imax-1); i++) { // i=1 i <=imax -1
-        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax); j++) { // j=1 j <=jmax
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1,imax-1); i++) { // i=1 i <=imax -1
+        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) { // j=1 j <=jmax
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 du2dx = ((u[i][j]+u[i+1][j])*(u[i][j]+u[i+1][j])+
@@ -43,8 +43,8 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         }
     }
 
-    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x, imax); i++) {
-        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax-1); j++) {
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax-1); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 duvdx = ((u[i][j]+u[i][j+1])*(v[i][j]+v[i+1][j])+
@@ -69,11 +69,11 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     }
 
     /* f & g at external boundaries */
-    for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y, jmax); j++) {
+    for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) {
         f[0][j]    = u[0][j];
         f[imax][j] = u[imax][j];
     }
-    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x, imax); i++) {
+    for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
         g[i][0]    = v[i][0];
         g[i][jmax] = v[i][jmax];
     }
@@ -82,6 +82,11 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     // }
     halo_sync(proc, f, tile_data);
     halo_sync(proc, g, tile_data);
+
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think f[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, f[165][15], f[166][15], f[165][16], f[166][16]);
+        printf("I am proc %d. I think g[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, g[165][15], g[166][15], g[165][16], g[166][16]);
+    }
 }
 
 
@@ -90,8 +95,8 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
     int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
-    for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x);i++) {
-        for (j=max(1, tile_data->start_y);j<=min(jmax, tile_data->end_y);j++) {
+    for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x-1);i++) {
+        for (j=max(1, tile_data->start_y);j<=min(jmax, tile_data->end_y-1);j++) {
             if (flag[i][j] & C_F) {
                 /* only for fluid and non-surface cells */
                 rhs[i][j] = (
@@ -102,6 +107,9 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
         }
     }
     halo_sync(proc, rhs, tile_data);
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think rhs[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, rhs[165][15], rhs[166][15], rhs[165][16], rhs[166][16]);
+    }
 }
 
 /* Red/Black SOR to solve the poisson equation */
@@ -149,9 +157,9 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     /* Red/Black SOR-iteration */
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
-            for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
+            for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
                 int j_start = max(1, tile_data->start_y);
-                for (j = j_start; j <= min(jmax, tile_data->end_y); j += 1) {
+                for (j = j_start; j <= min(jmax, tile_data->end_y - 1); j += 1) {
                     if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
@@ -212,6 +220,10 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         if (*res<eps) break;
     } /* end of iter */
 
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think p[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, p[165][15], p[166][15], p[165][16], p[166][16]);
+    }
+
     return iter;
 }
 
@@ -224,16 +236,16 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
 {
     int i, j;
 
-    for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x); i++) {
-        for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y); j++) {
+    for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
                 u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
             }
         }
     }
-    for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x); i++) {
-        for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y); j++) {
+    for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x - 1); i++) {
+        for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y - 1); j++) {
             /* only if both adjacent cells are fluid cells */
             if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
                 v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
@@ -242,6 +254,10 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
     }
     halo_sync(proc, u, tile_data);
     halo_sync(proc, v, tile_data);
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think u[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, u[165][15], u[166][15], u[165][16], u[166][16]);
+        printf("I am proc %d. I think v[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, v[165][15], v[166][15], v[165][16], v[166][16]);
+    }
 }
 
 
