@@ -18,6 +18,10 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
 {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think u[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, u[165][15], u[166][15], u[165][16], u[166][16]);
+        printf("I am proc %d. I think v[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, v[165][15], v[166][15], v[165][16], v[166][16]);
+    }
 
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1,imax-1); i++) { // i=1 i <=imax -1
         for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) { // j=1 j <=jmax
@@ -82,11 +86,6 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     // }
     halo_sync(proc, f, tile_data);
     halo_sync(proc, g, tile_data);
-
-    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
-        printf("I am proc %d. I think f[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, f[165][15], f[166][15], f[165][16], f[166][16]);
-        printf("I am proc %d. I think g[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, g[165][15], g[166][15], g[165][16], g[166][16]);
-    }
 }
 
 
@@ -95,6 +94,10 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
     int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think f[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, f[165][15], f[166][15], f[165][16], f[166][16]);
+        printf("I am proc %d. I think g[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, g[165][15], g[166][15], g[165][16], g[166][16]);
+    }
     for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x-1);i++) {
         for (j=max(1, tile_data->start_y);j<=min(jmax, tile_data->end_y-1);j++) {
             if (flag[i][j] & C_F) {
@@ -107,9 +110,6 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
         }
     }
     halo_sync(proc, rhs, tile_data);
-    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
-        printf("I am proc %d. I think rhs[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, rhs[165][15], rhs[166][15], rhs[165][16], rhs[166][16]);
-    }
 }
 
 /* Red/Black SOR to solve the poisson equation */
@@ -120,6 +120,10 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     int i, j, iter;
     float add, beta_2, beta_mod;
     float p0 = 0.0;
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think p[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, p[165][15], p[166][15], p[165][16], p[166][16]);
+        printf("I am proc %d. I think rhs[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, rhs[165][15], rhs[166][15], rhs[165][16], rhs[166][16]);
+    }
     
     int rb; /* Red-black value. */
 
@@ -220,10 +224,6 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         if (*res<eps) break;
     } /* end of iter */
 
-    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
-        printf("I am proc %d. I think p[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, p[165][15], p[166][15], p[165][16], p[166][16]);
-    }
-
     return iter;
 }
 
@@ -235,7 +235,11 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
-
+    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
+        printf("I am proc %d. I think f[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, f[165][15], f[166][15], f[165][16], f[166][16]);
+        printf("I am proc %d. I think g[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, g[165][15], g[166][15], g[165][16], g[166][16]);
+        printf("I am proc %d. I think p[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, p[165][15], p[166][15], p[165][16], p[166][16]);
+    }
     for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
         for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
             /* only if both adjacent cells are fluid cells */
@@ -252,12 +256,9 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
             }
         }
     }
+    // printf("I am proc %d. start x-y %d-%d, end x-y %d-%d", proc, tile_data->start_x, tile_data->start_y, tile_data->end_x, tile_data->end_y);
     halo_sync(proc, u, tile_data);
     halo_sync(proc, v, tile_data);
-    if (proc == 0 || proc == 1 || proc == 4 || proc == 5) {
-        printf("I am proc %d. I think u[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, u[165][15], u[166][15], u[165][16], u[166][16]);
-        printf("I am proc %d. I think v[165][15] is %f, [166][15] is %f, [165][16] is %f, [166][16] is %f\n", proc, v[165][15], v[166][15], v[165][16], v[166][16]);
-    }
 }
 
 
@@ -319,5 +320,7 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
         }
         *del_t = tau * (*del_t); /* multiply by safety factor */
     }
-    printf("delt %f\n", *del_t);
+    if (proc == 0) {
+        printf("delt %f\n", *del_t);
+    }
 }

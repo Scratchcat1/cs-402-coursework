@@ -28,15 +28,21 @@ static struct option long_opts[] = {
     { "outfile",   1, NULL, 'o' },
     { "plot-psi",  0, NULL, 'p' },
     { "plot-zeta", 0, NULL, 'z' },
+    { "plot-raw-u", 0, NULL, 'U' },
+    { "plot-raw-v", 0, NULL, 'B' },
+    { "plot-raw-p", 0, NULL, 'P' },
     { "version",   0, NULL, 'V' },
     { "verbose",   1, NULL, 'v' },
     { 0,           0, 0,    0   }
 };
-#define GETOPTS "hi:o:pv:Vz"
+#define GETOPTS "hi:o:pv:Vz:UBP"
 
 /* Output modes */
 #define ZETA 0
 #define PSI  1
+#define RAW_U 2
+#define RAW_V 3
+#define RAW_P 4
 
 int main(int argc, char **argv)
 {
@@ -76,6 +82,15 @@ int main(int argc, char **argv)
                     free(outfile);
                 }
                 outfile = strdup(optarg);
+                break;
+            case 'U':
+                outmode = RAW_U;
+                break;
+            case 'B':
+                outmode = RAW_V;
+                break;
+            case 'P':
+                outmode = RAW_P;
                 break;
             default:
                 show_usage = 1;
@@ -170,7 +185,14 @@ int main(int argc, char **argv)
                 } else if (outmode == PSI) {
                     float p = (i < imax && j < jmax)?psi[i][j]:0.0;
                     r = g = b = (p+3.0)/7.5 * 255; 
+                } else if (outmode == RAW_U) {
+                    r = g = b = ((u[i][j] + 10.0) /10.0) * 255; 
+                } else if (outmode == RAW_V) {
+                    r = g = b = ((v[i][j] + 10.0) /10.0) * 255; 
+                } else if (outmode == RAW_P) {
+                    r = g = b = ((p[i][j] + 10.0) /10.0) * 255; 
                 }
+                // fprintf(stderr, "%d %d %d ---", i, j, r);
             }
             fprintf(fout, "%c%c%c", r, g, b);
         }

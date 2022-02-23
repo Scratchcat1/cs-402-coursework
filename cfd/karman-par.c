@@ -227,14 +227,13 @@ int main(int argc, char *argv[])
             printf("%d t:%g, del_t:%g, SOR iters:%3d, res:%e, bcells:%d\n",
                 iters, t+del_t, del_t, itersor, res, ibound);
         }
-
         start = MPI_Wtime();
         update_velocity(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, &tile_data);
         update_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
         apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
-        halo_sync(proc, u, &tile_data);
+        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
         halo_sync(proc, v, &tile_data);
         boundary_time_taken = MPI_Wtime() - start;
         printf("\n --- Timestep %f of %f ---\n", t, t_end);
@@ -246,6 +245,7 @@ int main(int argc, char *argv[])
         printf("boundary_time_taken: %f\n", boundary_time_taken);
     } /* End of main loop */
     
+
     sync_tile_to_root(proc, u, &tile_data);
     sync_tile_to_root(proc, v, &tile_data);
     sync_tile_to_root(proc, f, &tile_data);
@@ -296,6 +296,7 @@ void write_bin(float **u, float **v, float **p, char **flag,
         fwrite(p[i], sizeof(float), jmax+2, fp);
         fwrite(flag[i], sizeof(char), jmax+2, fp);
     }
+    printf("%f %f %f\n", v[170][20], v[169][20], v[171][20]);
     fclose(fp);
 }
 

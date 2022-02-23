@@ -103,7 +103,7 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 	if (tile_data->pos_x > 0) {
 		// There is a tile to the left
 		MPI_Irecv(&array[tile_data->start_x-1][tile_data->start_y], 1, tile_data->tilecoltype, rank - 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d\n", rank, rank - 1);
+		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, rank - 1, tile_data->start_x - 1, tile_data->start_y);
 		requests_pos++;
 	}
 	if (tile_data->pos_x < tile_data->num_x - 1) {
@@ -116,14 +116,14 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 		// There is a tile above
 		int target_rank = rank - tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->start_y - 1], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d\n", rank, target_rank);
+		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, target_rank, tile_data->start_x, tile_data->start_y - 1);
 		requests_pos++;
 	}
 	if (tile_data->pos_y < tile_data->num_y - 1) {
 		// There is a tile below
 		int target_rank = rank + tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->end_y], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d\n", rank, target_rank);
+		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, target_rank, tile_data->start_x, tile_data->end_y);
 		requests_pos++;
 	}
 
