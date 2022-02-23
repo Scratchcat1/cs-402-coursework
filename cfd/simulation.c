@@ -197,7 +197,7 @@ int mpi_poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
-    printf("p0 %f\n", p0);
+    // printf("p0 %f\n", p0);
    
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
@@ -245,7 +245,7 @@ int mpi_poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             }
         }
         *res = sqrt((*res)/ifull)/p0;
-        printf("res %f p0 %f\n", *res, p0);
+        // printf("res %f p0 %f\n", *res, p0);
 
         /* convergence? */
         if (*res<eps) break;

@@ -125,7 +125,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
-    printf("p0 %f\n", p0);
+    // printf("p0 %f\n", p0);
 
     float* recv_buffer = NULL;
     if (proc == 0) {
@@ -139,7 +139,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         }
         p0 = p0sum;
         free(recv_buffer);
-        printf("sump0 %f\n", p0);
+        // printf("sump0 %f\n", p0);
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
    
@@ -178,8 +178,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         
         /* Partial computation of residual */
         *res = 0.0;
-        for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x); i++) {
-            for (j = max(1, tile_data->start_y); j <= min(jmax, tile_data->end_y); j++) {
+        for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
+            for (j = max(1, tile_data->start_y); j <= min(jmax, tile_data->end_y - 1); j++) {
                 if (flag[i][j] & C_F) {
                     /* only fluid cells */
                     add = (eps_E*(p[i+1][j]-p[i][j]) - 
@@ -204,7 +204,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             free(recv_buffer);
             *res = res_sum;
             *res = sqrt((*res)/ifull)/p0;
-            printf("res %f p0 %f\n", *res, p0);
+            // printf("res %f p0 %f\n", *res, p0);
         }
         MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
@@ -259,13 +259,13 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
     if (tau >= 1.0e-10) { /* else no time stepsize control */
         umax_local = 1.0e-10;
         vmax_local = 1.0e-10; 
-        for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x); i++) {
-            for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y); j++) {
+        for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x - 1); i++) {
+            for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y - 1); j++) {
                 umax_local = max(fabs(u[i][j]), umax_local);
             }
         }
-        for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x); i++) {
-            for (j=tile_data->start_y; j<=min(jmax+1, tile_data->end_y); j++) {
+        for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x - 1); i++) {
+            for (j=tile_data->start_y; j<=min(jmax+1, tile_data->end_y - 1); j++) {
                 vmax_local = max(fabs(v[i][j]), vmax_local);
             }
         }

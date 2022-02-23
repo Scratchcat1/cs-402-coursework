@@ -26,6 +26,7 @@ void init_tile_shape(int nprocs, int mesh_width, int mesh_height, struct TileDat
 				int tile_width_current = mesh_width / tiles_num_x;
 				int tile_height_current = mesh_height / tiles_num_y;
 
+				// Will fail if the number of procs in the axis is > 1/2 axis length. It is reasonable that this will not take place.
 				if (tile_width_current * tiles_num_x < mesh_width) {
 					tile_width_current += 1;
 				}
@@ -96,6 +97,8 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 	int requests_pos = 0;
 	// No -1 after end_? as the range is non inclusive, so end_? is from the next tile.
 	// printf("Rank %d checking in\n", rank);
+	// printf("Rank %d checking in. wxh %dx%d. std_wxh %dx%d.\n", rank, tile_data->width, tile_data->height, tile_data->std_width, tile_data->std_height);
+	MPI_Barrier(MPI_COMM_WORLD);
 	// Receive the data asynchronously to avoid a deadlock and improve performance
 	if (tile_data->pos_x > 0) {
 		// There is a tile to the left
@@ -262,8 +265,8 @@ void print_matrix(float** array, int cols, int rows)
 }
 
 void test_halo_sync(int rank, int nprocs) {
-	int COLS = 12;
-	int ROWS = 24;
+	int COLS = 31;
+	int ROWS = 31;
 	float **matrix = alloc_floatmatrix(COLS, ROWS);
 	struct TileData tile_data;
 	int output_proc = 17;
@@ -294,6 +297,11 @@ void test_halo_sync(int rank, int nprocs) {
 	}
 	halo_sync(rank, matrix, &tile_data);
 	if (rank == output_proc) {
+		print_matrix(matrix, COLS, ROWS);
+	}
+
+	sync_tile_to_root(rank, matrix, &tile_data);
+	if (rank == 0) {
 		print_matrix(matrix, COLS, ROWS);
 	}
 
