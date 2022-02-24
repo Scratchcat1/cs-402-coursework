@@ -91,67 +91,105 @@ void free_tile_data(struct TileData* tile_data) {
 
 
 void halo_sync(int rank, float** array, struct TileData* tile_data) {
-	// MPI_Barrier(MPI_COMM_WORLD);
 	double start = MPI_Wtime();
-	MPI_Request requests[8];
+	MPI_Request requests[16];
 	int requests_pos = 0;
 	// No -1 after end_? as the range is non inclusive, so end_? is from the next tile.
-	// printf("Rank %d checking in\n", rank);
-	// printf("Rank %d checking in. wxh %dx%d. std_wxh %dx%d.\n", rank, tile_data->width, tile_data->height, tile_data->std_width, tile_data->std_height);
 	MPI_Barrier(MPI_COMM_WORLD);
+	int sync_left = tile_data->pos_x > 0;
+	int sync_right = tile_data->pos_x < tile_data->num_x - 1;
+	int sync_up = tile_data->pos_y > 0;
+	int sync_down = tile_data->pos_y < tile_data->num_y - 1;
+
 	// Receive the data asynchronously to avoid a deadlock and improve performance
-	if (tile_data->pos_x > 0) {
+	if (sync_left) {
 		// There is a tile to the left
 		MPI_Irecv(&array[tile_data->start_x-1][tile_data->start_y], 1, tile_data->tilecoltype, rank - 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, rank - 1, tile_data->start_x - 1, tile_data->start_y);
 		requests_pos++;
 	}
-	if (tile_data->pos_x < tile_data->num_x - 1) {
+	if (sync_right) {
 		// There is a tile to the right
 		MPI_Irecv(&array[tile_data->end_x][tile_data->start_y], 1, tile_data->tilecoltype, rank + 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, rank + 1, tile_data->end_x, tile_data->start_y);
 		requests_pos++;
 	}
-	if (tile_data->pos_y > 0) {
+	if (sync_up) {
 		// There is a tile above
 		int target_rank = rank - tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->start_y - 1], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, target_rank, tile_data->start_x, tile_data->start_y - 1);
 		requests_pos++;
 	}
-	if (tile_data->pos_y < tile_data->num_y - 1) {
+	if (sync_down) {
 		// There is a tile below
 		int target_rank = rank + tile_data->num_x;
 		MPI_Irecv(&array[tile_data->start_x][tile_data->end_y], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, getting from %d. x: %d, y:%d\n", rank, target_rank, tile_data->start_x, tile_data->end_y);
+		requests_pos++;
+	}
+	
+	// Diagonals
+	if (sync_left && sync_up) {
+		int target_rank = rank - tile_data->num_x - 1;
+		MPI_Irecv(&array[tile_data->start_x-1][tile_data->start_y - 1], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_up && sync_right) {
+		int target_rank = rank - tile_data->num_x + 1;
+		MPI_Irecv(&array[tile_data->end_x][tile_data->start_y - 1], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_right && sync_down) {
+		int target_rank = rank + tile_data->num_x + 1;
+		MPI_Irecv(&array[tile_data->end_x][tile_data->end_y], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_down && sync_left) {
+		int target_rank = rank + tile_data->num_x - 1;
+		MPI_Irecv(&array[tile_data->start_x-1][tile_data->end_y], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
 		requests_pos++;
 	}
 
 	// Send the data asynchronously
-	if (tile_data->pos_x > 0) {
+	if (sync_left) {
 		// There is a tile to the left
 		MPI_Isend(&array[tile_data->start_x][tile_data->start_y], 1, tile_data->tilecoltype, rank - 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, sending to %d\n", rank, rank - 1);
 		requests_pos++;
 	}
-	if (tile_data->pos_x < tile_data->num_x - 1) {
+	if (sync_right) {
 		// There is a tile to the right
 		MPI_Isend(&array[tile_data->end_x - 1][tile_data->start_y], 1, tile_data->tilecoltype, rank + 1, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, sending to %d\n", rank, rank + 1);
 		requests_pos++;
 	}
-	if (tile_data->pos_y > 0) {
+	if (sync_up) {
 		// There is a tile above
 		int target_rank = rank - tile_data->num_x;
 		MPI_Isend(&array[tile_data->start_x][tile_data->start_y], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, sending to %d\n", rank, target_rank);
 		requests_pos++;
 	}
-	if (tile_data->pos_y < tile_data->num_y - 1) {
+	if (sync_down) {
 		// There is a tile below
 		int target_rank = rank + tile_data->num_x;
 		MPI_Isend(&array[tile_data->start_x][tile_data->end_y - 1], 1, tile_data->tilerowtype, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
-		// printf("I am %d, sending to %d\n", rank, target_rank);
+		requests_pos++;
+	}
+
+	// Diagonals
+	if (sync_left && sync_up) {
+		int target_rank = rank - tile_data->num_x - 1;
+		MPI_Isend(&array[tile_data->start_x][tile_data->start_y], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_up && sync_right) {
+		int target_rank = rank - tile_data->num_x + 1;
+		MPI_Isend(&array[tile_data->end_x - 1][tile_data->start_y], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_right && sync_down) {
+		int target_rank = rank + tile_data->num_x + 1;
+		MPI_Isend(&array[tile_data->end_x - 1][tile_data->end_y - 1], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
+		requests_pos++;
+	}
+	if (sync_down && sync_left) {
+		int target_rank = rank + tile_data->num_x - 1;
+		MPI_Isend(&array[tile_data->start_x][tile_data->end_y - 1], 1, MPI_FLOAT, target_rank, 0, MPI_COMM_WORLD, &requests[requests_pos]);
 		requests_pos++;
 	}
 
@@ -161,8 +199,6 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 		MPI_Wait(&requests[i], &s);
 		// TODO check s is ok
 	}
-	// printf("Sync for %d took %f seconds\n", rank, MPI_Wtime() - start);
-	// MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
@@ -202,12 +238,7 @@ void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
 			}
 			int other_start_x = other_pos_x * tile_data->std_width;
 			int other_start_y = other_pos_y * tile_data->std_height;
-			// printf("Receiving %d with pos %dx%d. Location vals r%d, b%d, rr%d, bb%d. Start is %dx%d.\n", rank, other_pos_x, other_pos_y, on_right, on_bottom, right_tile_width, bottom_tile_height, other_start_x, other_start_y);
-			// printf("%ld %ld", &array[0][0], &array[0][1]);
 			MPI_Irecv(&array[other_start_x][other_start_y], 1, *dtype, other_rank, 0, MPI_COMM_WORLD, &requests[other_rank]);
-
-			// MPI_Status s;
-			// MPI_Recv(&array[other_start_x][other_start_y], 1, *dtype, other_rank, 0, MPI_COMM_WORLD, &s);
 		}
 
 		MPI_Status s;
@@ -237,13 +268,41 @@ void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
 	MPI_Type_free(&bottom_right_tile);
 }
 
+void screw_it_sync_everything(int rank, float** array, struct TileData* tile_data) {
+	sync_tile_to_root(rank, array, tile_data);
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Datatype full_matrix;
+	MPI_Type_contiguous(tile_data->mesh_height * tile_data->mesh_width, MPI_FLOAT, &full_matrix);
+    MPI_Type_commit(&full_matrix);
+
+	if (rank == 0) {
+		int nprocs = tile_data->num_x * tile_data->num_y;
+		MPI_Request* requests = malloc(sizeof(MPI_Request) * nprocs);
+		for (int other_rank = 1; other_rank < nprocs; other_rank++) {
+			MPI_Isend(&array[0][0], 1, full_matrix, other_rank, 0, MPI_COMM_WORLD, &requests[other_rank]);
+		}
+
+		MPI_Status s;
+		for (int i = 1; i < nprocs; i++) {
+			MPI_Wait(&requests[i], &s);
+		}
+		printf("send ok\n");
+		// Async receive
+	} else {
+		MPI_Status s;
+		MPI_Recv(&array[0][0], 1, full_matrix, 0, 0, MPI_COMM_WORLD, &s);
+	}
+
+	MPI_Type_free(&full_matrix);
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
 void print_tile(float** array, struct TileData* tile_data)
 {
     int i, j;
-    // printf("%s\n", title);
-    for ( i = tile_data->start_x; i < tile_data->end_x; i++) {
-        for ( j = tile_data->start_y; j < tile_data->end_y; j++) {
-            printf("%10g ", array[i][j]);
+    for ( i = tile_data->start_x - 3; i < tile_data->end_x + 3; i++) {
+        for ( j = tile_data->start_y - 3; j < tile_data->end_y + 3; j++) {
+            printf("%10g, ", array[i][j]);
         }
         printf("\n");
     }
@@ -254,10 +313,9 @@ void print_matrix(float** array, int cols, int rows)
 {
     int i, j;
 	printf("start\n");
-    // printf("%s\n", title);
     for ( i = 0; i < cols; i++) {
         for ( j = 0; j < rows; j++) {
-            printf("%5g ", array[i][j]);
+            printf("%5g, ", array[i][j]);
         }
         printf("\n");
     }
@@ -288,7 +346,6 @@ void test_halo_sync(int rank, int nprocs) {
 
 	for (i = max(0, tile_data.start_x); i < min(COLS, tile_data.end_x); i++) {
         for ( j = max(0, tile_data.start_y); j < min(ROWS, tile_data.end_y); j++) {
-			// printf("%d, %d\n", i, j);
             matrix[i][j] *= -1;
         }
     }
@@ -307,7 +364,3 @@ void test_halo_sync(int rank, int nprocs) {
 
 	free_matrix(matrix);
 }
-
-// int min(int a, int b) {
-// 	return (a > b) ? b : a;
-// }

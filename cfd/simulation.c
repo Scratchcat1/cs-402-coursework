@@ -85,7 +85,6 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
     int jmax, float del_t, float delx, float dely)
 {
     int i, j;
-
     for (i=1;i<=imax;i++) {
         for (j=1;j<=jmax;j++) {
             if (flag[i][j] & C_F) {
@@ -129,8 +128,9 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
             for (i = 1; i <= imax; i++) {
-                for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
-                    // if ((i+j) % 2 != rb) { continue; }
+                // for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) { // TODO redo this, it was off by 1 count using bingo
+                for (j = 1; j <= jmax; j++) {
+                    if ((i+j) % 2 != rb) { continue; }
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 
@@ -262,7 +262,6 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely)
 {
     int i, j;
-
     for (i=1; i<=imax-1; i++) {
         for (j=1; j<=jmax; j++) {
             /* only if both adjacent cells are fluid cells */

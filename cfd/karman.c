@@ -43,7 +43,7 @@ static struct option long_opts[] = {
     { "version", 1, NULL, 'V' },
     { 0,         0, 0,    0   } 
 };
-#define GETOPTS "d:hi:o:t:v:Vx:y:"
+#define GETOPTS "d:hi:o:t:v:Vx:y:s"
 
 int main(int argc, char *argv[])
 {

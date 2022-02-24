@@ -193,7 +193,9 @@ int main(int argc, char *argv[])
             }
         }
         init_flag(flag, imax, jmax, delx, dely, &ibound);
-        apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
+        apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
+        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
+        halo_sync(proc, v, &tile_data);
     }
 
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
@@ -218,6 +220,7 @@ int main(int argc, char *argv[])
         if (ifluid > 0) {
             itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
                     eps, itermax, omega, &res, ifluid, &tile_data);
+                    screw_it_sync_everything(proc, u, &tile_data);
         } else {
             itersor = 0;
         }
@@ -232,7 +235,7 @@ int main(int argc, char *argv[])
         update_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
-        apply_boundary_conditions(u, v, flag, imax, jmax, ui, vi);
+        apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
         halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
         halo_sync(proc, v, &tile_data);
         boundary_time_taken = MPI_Wtime() - start;

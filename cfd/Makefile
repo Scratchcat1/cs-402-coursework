@@ -28,7 +28,7 @@ colcopy: colcopy.o alloc.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 bin2ppm.o        : alloc.h datadef.h
-boundary.o       : datadef.h
+boundary.o       : datadef.h tiles.h
 colcopy.o        : alloc.h
 init.o           : datadef.h
 karman.o         : alloc.h boundary.h datadef.h init.h simulation.h
