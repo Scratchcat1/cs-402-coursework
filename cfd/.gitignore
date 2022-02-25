@@ -5,4 +5,4 @@ gmon.out
 karman
 karman.bin
 pingpoing
-karman.log
+*.log
