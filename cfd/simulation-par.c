@@ -313,6 +313,7 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
             }
             max_buffer[0] = umax;
             max_buffer[1] = vmax;
+            free(recv_buffer);
         }
         MPI_Bcast(&max_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
         umax = max_buffer[0];
