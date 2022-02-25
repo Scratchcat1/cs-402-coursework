@@ -4,7 +4,8 @@
 #include "datadef.h"
 #include "init.h"
 #include "tiles.h"
-
+#include <omp.h>
+#include <mpi.h>
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
 
@@ -145,17 +146,24 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         free(recv_buffer);
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-   
+    printf("num threads %d\n", omp_get_max_threads());
+
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
 
     /* Red/Black SOR-iteration */
+    #pragma omp parallel //private(i, j) shared(p, rhs, flag) firstprivate(rb, omega, beta_2, rdx2, rdy2, beta_mod)
+    {
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
-            #pragma omp parallel for private(i, j) firstprivate(tile_data, rb, omega, beta_2, rdx2, rdy2, imax, jmax, beta_mod) schedule(static)
-            for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
-                int j_start = max(1, tile_data->start_y);
-                for (j = j_start; j <= min(jmax, tile_data->end_y - 1); j += 1) {
+            double start = MPI_Wtime();
+int i_start = max(1, tile_data->start_x);
+int i_end = min(imax, tile_data->end_x - 1);
+int j_start = max(1, tile_data->start_y);
+int j_end = min(jmax, tile_data->end_y - 1);
+            #pragma omp parallel for private(i, j) shared(p, rhs, flag) firstprivate(i_start, i_end, j_start, j_end, rb, omega, beta_2, rdx2, rdy2, beta_mod) schedule(static)
+            for (i = i_start; i <=i_end; i++) {
+                for (j = j_start; j <= j_end; j += 1) {
                     if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
@@ -177,9 +185,15 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                     }
                 } /* end of j */
             } /* end of i */
+            #pragma omp barrier
+            #pragma omp single
+            {
+            printf("1r or b loop %f\n", MPI_Wtime() - start);
             halo_sync(proc, p, tile_data);
+            }
         } /* end of rb */
-        
+        #pragma omp single
+        {
         /* Partial computation of residual */
         *res = 0.0;
         for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
@@ -210,11 +224,11 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             *res = sqrt((*res)/ifull)/p0;
         }
         MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-
+        }
         /* convergence? */
         if (*res<eps) break;
     } /* end of iter */
-
+    }
     return iter;
 }
 
