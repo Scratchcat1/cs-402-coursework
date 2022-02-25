@@ -151,17 +151,19 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
 
+    int i_start = max(1, tile_data->start_x);
+    int i_end = min(imax, tile_data->end_x - 1);
+    int j_start = max(1, tile_data->start_y);
+    int j_end = min(jmax, tile_data->end_y - 1);
+
     /* Red/Black SOR-iteration */
-    #pragma omp parallel //private(i, j) shared(p, rhs, flag) firstprivate(rb, omega, beta_2, rdx2, rdy2, beta_mod)
+    printf("Going parallel\n");
+    #pragma omp parallel private(iter, i, j) shared(p, rhs, flag) firstprivate(rb, i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod)
     {
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
             double start = MPI_Wtime();
-int i_start = max(1, tile_data->start_x);
-int i_end = min(imax, tile_data->end_x - 1);
-int j_start = max(1, tile_data->start_y);
-int j_end = min(jmax, tile_data->end_y - 1);
-            #pragma omp parallel for private(i, j) shared(p, rhs, flag) firstprivate(i_start, i_end, j_start, j_end, rb, omega, beta_2, rdx2, rdy2, beta_mod) schedule(static)
+            #pragma omp for private(i, j) //firstprivate(rb, i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod)
             for (i = i_start; i <=i_end; i++) {
                 for (j = j_start; j <= j_end; j += 1) {
                     if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
@@ -183,12 +185,13 @@ int j_end = min(jmax, tile_data->end_y - 1);
                                 - rhs[i][j]
                             );
                     }
+                    // printf("%d: %d\n", omp_get_thread_num(), i);
                 } /* end of j */
             } /* end of i */
             #pragma omp barrier
             #pragma omp single
             {
-            printf("1r or b loop %f\n", MPI_Wtime() - start);
+                printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
             halo_sync(proc, p, tile_data);
             }
         } /* end of rb */
