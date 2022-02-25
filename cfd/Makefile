@@ -1,5 +1,5 @@
 CC=mpicc
-CFLAGS=-O3 -Wall -g -pg -Wextra -Wpedantic
+CFLAGS=-O3 -Wall -g -pg -Wextra -Wpedantic -fopenmp
 
 .c.o:
 	$(CC) -c $(CFLAGS) $<

@@ -21,7 +21,7 @@ void init_tile_shape(int nprocs, int mesh_width, int mesh_height, struct TileDat
 	int tiles_num_x, tiles_num_y;
 	for (tiles_num_x = 1; tiles_num_x <= nprocs; tiles_num_x++) {
 		for (tiles_num_y = 1; tiles_num_y <= nprocs; tiles_num_y++) {
-			if (tiles_num_x * tiles_num_y == nprocs && tiles_num_y > tiles_num_x) { // TODO remove second condition, debuyg
+			if (tiles_num_x * tiles_num_y == nprocs) {
 				// All procs are used
 				int tile_width_current = mesh_width / tiles_num_x;
 				int tile_height_current = mesh_height / tiles_num_y;

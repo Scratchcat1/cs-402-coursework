@@ -152,6 +152,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     /* Red/Black SOR-iteration */
     for (iter = 0; iter < itermax; iter++) {
         for (rb = 0; rb <= 1; rb++) {
+            #pragma omp parallel for private(i, j) firstprivate(tile_data, rb, omega, beta_2, rdx2, rdy2, imax, jmax, beta_mod) schedule(static)
             for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
                 int j_start = max(1, tile_data->start_y);
                 for (j = j_start; j <= min(jmax, tile_data->end_y - 1); j += 1) {
