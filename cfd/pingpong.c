@@ -31,7 +31,7 @@ static struct option long_opts[] = {
 int main(int argc, char **argv)
 {
     int i, n, p, size;
-    int iters = 1000, minsize = 1, maxsize = 32768;
+    int iters = 1000, minsize = 1, maxsize = 32768 * 128;
     int show_help = 0, show_usage = 0, show_version = 0;
     double start;
 
@@ -118,8 +118,41 @@ int main(int argc, char **argv)
             }
         }
         if (p == 0) { 
-            printf("%d %d byte pingpongs took %f seconds.\n", iters,
-                size, MPI_Wtime() - start);
+            printf("%d %d byte pingpongs took %f seconds. %f per iteration\n", iters,
+                size, MPI_Wtime() - start, (MPI_Wtime() - start) / iters);
+        }
+    }
+
+    // MPI_Status* statuses = malloc(sizeof(MPI_Status) * iters);
+    // int i = 0;
+    for (size = minsize; size <= maxsize; size *= 2) {
+        MPI_Request* requests = malloc(2 * sizeof(MPI_Request) * iters);
+        start = MPI_Wtime();
+        for (i = 0; i < iters; i++) {
+            // MPI_Request r;
+            // MPI_Status s;
+            /* ping... */
+            if (p == 0) {
+                MPI_Isend(dummy, size, MPI_CHAR, 1, PING, MPI_COMM_WORLD, &requests[2 * i]);
+            } else {
+                MPI_Irecv(dummy, size, MPI_CHAR, 0, PING, MPI_COMM_WORLD, &requests[2 * i]);
+            }
+
+            /* pong... */
+            if (p == 1) {
+                MPI_Isend(dummy, size, MPI_CHAR, 0, PONG, MPI_COMM_WORLD, &requests[2 * i + 1]);
+            } else {
+                MPI_Irecv(dummy, size, MPI_CHAR, 1, PONG, MPI_COMM_WORLD, &requests[2 * i + 1]);
+            }
+            // MPI_Wait(&r, &s);
+        }
+        for (i = 0; i < iters; i++) {
+            MPI_Status s;
+            MPI_Wait(&requests[i], &s);
+        }
+        if (p == 0) { 
+            printf("%d %d byte pingpongs non blocking took %f seconds. %f per iteration\n", iters,
+                size, MPI_Wtime() - start, (MPI_Wtime() - start) / iters);
         }
     }
     MPI_Finalize();

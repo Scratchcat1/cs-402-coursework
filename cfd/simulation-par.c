@@ -4,7 +4,8 @@
 #include "datadef.h"
 #include "init.h"
 #include "tiles.h"
-
+#include <omp.h>
+#include <mpi.h>
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
 
@@ -145,17 +146,27 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         free(recv_buffer);
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-   
+    printf("num threads %d\n", omp_get_max_threads());
+
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
 
+    int i_start = max(1, tile_data->start_x);
+    int i_end = min(imax, tile_data->end_x - 1);
+    int j_start = max(1, tile_data->start_y);
+    int j_end = min(jmax, tile_data->end_y - 1);
+    float res_sum_local = 0.0;
+
     /* Red/Black SOR-iteration */
-    for (iter = 0; iter < itermax; iter++) {
+    printf("Going parallel\n");
+    #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
+    {
+    for (int iter_local = 0; iter_local < itermax; iter_local++) {
         for (rb = 0; rb <= 1; rb++) {
-            #pragma omp parallel for private(i, j) firstprivate(tile_data, rb, omega, beta_2, rdx2, rdy2, imax, jmax, beta_mod) schedule(static)
-            for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
-                int j_start = max(1, tile_data->start_y);
-                for (j = j_start; j <= min(jmax, tile_data->end_y - 1); j += 1) {
+            double start = MPI_Wtime();
+            #pragma omp for private(i, j) //firstprivate(rb, i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod)
+            for (i = i_start; i <=i_end; i++) {
+                for (j = j_start; j <= j_end; j += 1) {
                     if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
@@ -175,46 +186,59 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                                 - rhs[i][j]
                             );
                     }
+                    // printf("%d: %d\n", omp_get_thread_num(), i);
                 } /* end of j */
             } /* end of i */
-            halo_sync(proc, p, tile_data);
+            #pragma omp barrier
+            #pragma omp single
+            {
+                // printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
+                halo_sync(proc, p, tile_data);
+                res_sum_local = 0.0;
+            }
         } /* end of rb */
-        
-        /* Partial computation of residual */
-        *res = 0.0;
-        for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x - 1); i++) {
-            for (j = max(1, tile_data->start_y); j <= min(jmax, tile_data->end_y - 1); j++) {
+
+        #pragma omp for private(i, j) reduction(+:res_sum_local)
+        for (i = i_start; i <= i_end; i++) {
+            for (j = j_start; j <= j_end; j++) {
                 if (flag[i][j] & C_F) {
                     /* only fluid cells */
                     add = (eps_E*(p[i+1][j]-p[i][j]) - 
                         eps_W*(p[i][j]-p[i-1][j])) * rdx2  +
                         (eps_N*(p[i][j+1]-p[i][j]) -
                         eps_S*(p[i][j]-p[i][j-1])) * rdy2  -  rhs[i][j];
-                    *res += add*add;
+                    res_sum_local += add*add;
                 }
             }
         }
+        // printf("%d: %f res sum local\n", omp_get_thread_num(), res_sum_local);
 
-        recv_buffer = NULL;
-        if (proc == 0) {
-            recv_buffer = malloc(sizeof(float) * nprocs);
-        }
-        MPI_Gather(res, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (proc == 0) {
-            float res_sum = 0.0;
-            for (i = 0; i < nprocs; i++) {
-                res_sum += recv_buffer[i];
+        #pragma omp single
+        {
+            /* Partial computation of residual */
+            *res = res_sum_local;
+
+            float* recv_buffer2 = NULL;
+            if (proc == 0) {
+                recv_buffer2 = malloc(sizeof(float) * nprocs);
             }
-            free(recv_buffer);
-            *res = res_sum;
-            *res = sqrt((*res)/ifull)/p0;
+            MPI_Gather(res, 1, MPI_FLOAT, recv_buffer2, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            if (proc == 0) {
+                float res_sum = 0.0;
+                for (i = 0; i < nprocs; i++) {
+                    res_sum += recv_buffer2[i];
+                }
+                free(recv_buffer2);
+                *res = res_sum;
+                *res = sqrt((*res)/ifull)/p0;
+            }
+            MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            iter = iter_local;
         }
-        MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-
         /* convergence? */
         if (*res<eps) break;
     } /* end of iter */
-
+    }
     return iter;
 }
 
@@ -289,6 +313,7 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
             }
             max_buffer[0] = umax;
             max_buffer[1] = vmax;
+            free(recv_buffer);
         }
         MPI_Bcast(&max_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
         umax = max_buffer[0];

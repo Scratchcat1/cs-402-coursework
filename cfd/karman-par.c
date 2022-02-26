@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <mpi.h>
+#include <immintrin.h>
 #include "alloc.h"
 #include "boundary.h"
 #include "datadef.h"
@@ -48,6 +49,7 @@ static struct option long_opts[] = {
 
 int main(int argc, char *argv[])
 {
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     int verbose = 1;          /* Verbosity level */
     float xlength = 22.0;     /* Width of simulated domain */
     float ylength = 4.1;      /* Height of simulated domain */
@@ -194,8 +196,9 @@ int main(int argc, char *argv[])
         }
         init_flag(flag, imax, jmax, delx, dely, &ibound);
         apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
-        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
+        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary. All threads generate this data
         halo_sync(proc, v, &tile_data);
+        halo_sync(proc, p, &tile_data);
     }
 
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;

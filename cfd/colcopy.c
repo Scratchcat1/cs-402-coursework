@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "alloc.h"
+#include <unistd.h>
 
 #define ROWS 9
 #define COLS 7 
@@ -45,10 +46,11 @@ int main(int argc, char **argv)
 
     /* Define two MPI_Datatypes for rows that we use later */
     MPI_Datatype fullrowtype, partrowtype;
-    MPI_Type_vector(ROWS, 1, ROWS, MPI_FLOAT, &fullrowtype);
+    MPI_Type_vector(COLS, 1, ROWS, MPI_FLOAT, &fullrowtype);
     MPI_Type_commit(&fullrowtype);
     MPI_Type_vector(3, 1, ROWS, MPI_FLOAT, &partrowtype);
     MPI_Type_commit(&partrowtype);
+    printf("%lx\n", &fullrowtype);
 
     if (p == 0) {
         MPI_Status s;
@@ -73,13 +75,13 @@ int main(int argc, char **argv)
         MPI_Recv(&matrix[0][6], 1, fullrowtype, 1, 0, MPI_COMM_WORLD, &s);
         printmatrix("After receiving row 6:", matrix);
        
-        zeromatrix(matrix); 
-        MPI_Recv(&matrix[0][1], 1, partrowtype, 1, 0, MPI_COMM_WORLD, &s);
-        printmatrix("After receiving row 1 cols 0-2:", matrix);
+        // zeromatrix(matrix); 
+        // MPI_Recv(&matrix[0][1], 1, partrowtype, 1, 0, MPI_COMM_WORLD, &s);
+        // printmatrix("After receiving row 1 cols 0-2:", matrix);
         
-        zeromatrix(matrix); 
-        MPI_Recv(&matrix[4][1], 1, partrowtype, 1, 0, MPI_COMM_WORLD, &s);
-        printmatrix("After receiving row 1 cols 4-6:", matrix);
+        // zeromatrix(matrix); 
+        // MPI_Recv(&matrix[4][1], 1, partrowtype, 1, 0, MPI_COMM_WORLD, &s);
+        // printmatrix("After receiving row 1 cols 4-6:", matrix);
     } else {
         /* Send all of column 4 to processor 0 */
         MPI_Send(matrix[4], ROWS, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
@@ -89,18 +91,17 @@ int main(int argc, char **argv)
 
         /* Send columns 3 and 4 to processor 0 */
         MPI_Send(matrix[3], ROWS*2, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
-
         /* Send the entire matrix (ie all columns) to processor 0 */
         MPI_Send(matrix[0], ROWS*COLS, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 
         /* Send row 6 to processor 0 */
         MPI_Send(&matrix[0][6], 1, fullrowtype, 0, 0, MPI_COMM_WORLD);
         
-        /* Send row 1 cols 0-2 to processor 0 */
-        MPI_Send(&matrix[0][1], 1, partrowtype, 0, 0, MPI_COMM_WORLD);
+        // /* Send row 1 cols 0-2 to processor 0 */
+        // MPI_Send(&matrix[0][1], 1, partrowtype, 0, 0, MPI_COMM_WORLD);
         
-        /* Send row 1 cols 4-6 to processor 0 */
-        MPI_Send(&matrix[4][1], 1, partrowtype, 0, 0, MPI_COMM_WORLD);
+        // /* Send row 1 cols 4-6 to processor 0 */
+        // MPI_Send(&matrix[4][1], 1, partrowtype, 0, 0, MPI_COMM_WORLD);
     }
     if (p == 0) {
         t = MPI_Wtime() - t;
@@ -108,12 +109,23 @@ int main(int argc, char **argv)
     }
 
     /* Free the matrix we allocated */
+    printf("Freeing matrix , proc %d\n", p);
     free_matrix(matrix);
-
+    printf("Freed matrix , proc %d\n", p);
+    printf("p %lx\n", &p);
+    printf("%lx\n", &fullrowtype);
     /* Free the derived MPI_Datatypes */
-    MPI_Type_free(&fullrowtype);
-    MPI_Type_free(&partrowtype);
+    sleep(5);
 
+    printf(" Before Barrier\n");
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("Barrier\n");
+    // if (p == 1) {
+        MPI_Type_free(&fullrowtype);
+        MPI_Type_free(&partrowtype);
+    // }
+
+    printf("Finalizing  proc %d\n", p);
     MPI_Finalize();
     return 0;
 }
