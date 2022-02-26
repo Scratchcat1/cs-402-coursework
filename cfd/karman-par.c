@@ -4,6 +4,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <mpi.h>
+#include <immintrin.h>
 #include "alloc.h"
 #include "boundary.h"
 #include "datadef.h"
@@ -48,6 +49,7 @@ static struct option long_opts[] = {
 
 int main(int argc, char *argv[])
 {
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     int verbose = 1;          /* Verbosity level */
     float xlength = 22.0;     /* Width of simulated domain */
     float ylength = 4.1;      /* Height of simulated domain */
