@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &proc);
-    test_halo_sync(proc,  nprocs);
+    // test_halo_sync(proc,  nprocs);
 
     delx = xlength/imax;
     dely = ylength/jmax;
@@ -159,7 +159,8 @@ int main(int argc, char *argv[])
 
     struct TileData tile_data;
     init_tile_data(proc, nprocs, imax + 2, jmax + 2, &tile_data);
-    printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]\n"
+    if (proc == 0) {
+        printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]\n"
         , proc, 
         tile_data.num_x, 
         tile_data.num_y, 
@@ -171,6 +172,7 @@ int main(int argc, char *argv[])
         tile_data.end_x,
         tile_data.start_y,
         tile_data.end_y);
+    }
 
     if (!u || !v || !f || !g || !p || !rhs || !flag) {
         fprintf(stderr, "Couldn't allocate memory for matrices.\n");
@@ -242,13 +244,15 @@ int main(int argc, char *argv[])
         halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
         halo_sync(proc, v, &tile_data);
         boundary_time_taken = MPI_Wtime() - start;
-        printf("\n --- Timestep %f of %f ---\n", t, t_end);
-        printf("timestep_time_taken: %f\n", timestep_time_taken);
-        printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
-        printf("rhs_time_taken: %f\n", rhs_time_taken);
-        printf("possion_time_taken: %f\n", possion_time_taken);
-        printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
-        printf("boundary_time_taken: %f\n", boundary_time_taken);
+        if (proc == 0) {
+            printf("\n --- Timestep %f of %f ---\n", t, t_end);
+            printf("timestep_time_taken: %f\n", timestep_time_taken);
+            printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
+            printf("rhs_time_taken: %f\n", rhs_time_taken);
+            printf("possion_time_taken: %f\n", possion_time_taken);
+            printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
+            printf("boundary_time_taken: %f\n", boundary_time_taken);
+        }
     } /* End of main loop */
     
 

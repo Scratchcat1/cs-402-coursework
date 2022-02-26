@@ -6,3 +6,4 @@ karman
 karman.bin
 pingpoing
 *.log
+venv
