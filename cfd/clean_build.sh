@@ -1,3 +1,3 @@
 set -e
 make clean all
-mkdir test
+mkdir -p test
