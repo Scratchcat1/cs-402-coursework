@@ -7,3 +7,4 @@ karman.bin
 pingpoing
 *.log
 venv
+test/
