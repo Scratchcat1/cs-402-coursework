@@ -5,8 +5,9 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import glob
 
-pd.set_option('max_columns', None)
+pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 def get_time_from_timing_line(line):
@@ -172,10 +173,20 @@ def collect_data():
             df["sbatch_tasks"] = cfd_runner.sbatch_tasks
             df["omp_threads"] = cfd_runner.omp_threads
             df.to_csv(csv_path)
-            all_df = pd.concat([all_df, df])
-#            print(all_df)
-    all_df.to_csv("timing.csv")
+    #         all_df = pd.concat([all_df, df])
+    #         print(all_df)
+    # all_df.to_csv("timing.csv")
+
+def plot_graphs():
+    filenames = glob.glob("timing_data/*.csv")
+    dfs = []
+    for filename in filenames:
+        df = pd.read_csv(filename)
+        dfs.append(df)
+    all_df = pd.concat(dfs, axis=0, ignore_index=True)
+
 
 if __name__ == "__main__":
     subprocess.run(["bash", "./clean_build.sh"])
     collect_data()
+    plot_graphs()
