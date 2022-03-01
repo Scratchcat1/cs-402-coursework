@@ -1,20 +1,22 @@
 #!/bin/bash
 #SBATCH --job-name=cfd
 #SBATCH --partition=cs402
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
+##SBATCH --partition=desktop-debug
+#SBATCH --nodes=2
+#SBATCH --ntasks=2
 #SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-socket=1
 #SBATCH --time=00:10:00
 . /etc/profile.d/modules.sh
 module purge
 module load cs402-mpi
 # time mpirun ./a.out
 cat /proc/cpuinfo
-export OMP_NUM_THREADS=1
-time mpirun -npersocket 1 --bind-to socket ./karman-par -x 1000 -y 800 --infile initial-big.bin -o karman-big.bin -t 25
+export OMP_NUM_THREADS=12
+#time mpirun -display-map -display-allocation  --bind-to none ./karman-par -x 1000 -y 800 --infile initial-big.bin -o karman-big.bin -t 0.2
 #time ./karman -x 100 -y 100 --infile initial-big.bin -o karman-big.bin -t 25
 #gprof ./karman
 ./bin2ppm < karman.bin > karman.ppm
 ./diffbin karman.vanilla.bin karman.bin
 
-# mpirun -n 2 ./pingpong
+mpirun -n 2 ./pingpong

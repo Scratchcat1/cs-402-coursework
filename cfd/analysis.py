@@ -17,7 +17,7 @@ class CFDRunner:
     def __init__(self, id):
         self.x = 660
         self.y = 120
-        self.t = 1
+        self.t = 0.2
         self.sbatch_nodes = 1
         self.sbatch_tasks = 0.5
         self.sbatch_time = "00:10:00"
@@ -98,8 +98,9 @@ class CFDRunner:
             fh.writelines([
                 "#!/bin/bash\n",
                 "#SBATCH --job-name=cfd\n",
-                "#SBATCH --partition=cs402\n",
+                "#SBATCH --partition=desktop-batch\n",
                 "#SBATCH --nice=9000\n",
+                "#SBATCH --ntasks-per-socket=1\n",
                 f"#SBATCH --nodes={self.sbatch_nodes}\n",
                 f"#SBATCH --ntasks={self.sbatch_tasks}\n",
                 f"#SBATCH --cpus-per-task={min(6, self.omp_threads)}\n"
@@ -109,7 +110,7 @@ class CFDRunner:
                 "module load cs402-mpi\n",
                 "# time mpirun ./a.out\n",
                 f"export OMP_NUM_THREADS={self.omp_threads}\n",
-                f"time mpirun -npersocket 1 --bind-to none  --oversubscribe ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
+                f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
                 "#time ./karman -x 100 -y 100 --infile initial-big.bin -o karman-big.bin -t 25\n",
                 "#gprof ./karman\n",
                 "./bin2ppm < karman.bin > karman.ppm\n",
@@ -135,12 +136,13 @@ def collect_data():
     runners = []
     for x, y in [(1000, 200), (2000, 400)]:
         for sbatch_nodes in [1, 2, 3, 4]:
-            for omp_num_threads in [1, 2, 3, 4, 6, 8, 12]:
+            for omp_num_threads in [1, 2, 3, 4]:
                 csv_path = os.path.join("timing_data", f"{x}-{y}-{sbatch_nodes}-{omp_num_threads}.csv")
                 if os.path.exists(csv_path):
                     continue
                 id += 1
                 sbatch_tasks = int(sbatch_nodes * np.ceil(omp_num_threads / 6))
+                print(sbatch_tasks, sbatch_nodes, omp_num_threads)
                 cfd_runner = CFDRunner(id)
                 cfd_runner.x = x
                 cfd_runner.y = y
@@ -149,7 +151,7 @@ def collect_data():
                 cfd_runner.omp_threads = omp_num_threads
                 cfd_runner.save_sbatch()
                 runners.append(cfd_runner)
-    max_running = 4
+    max_running = 1
     to_be_run = runners[::-1]
     while len(to_be_run) > 0:
         running_list = []
@@ -162,15 +164,16 @@ def collect_data():
             time.sleep(5)
             while cfd_runner.is_still_running():
                 time.sleep(1)
+            csv_path = os.path.join("timing_data", f"{cfd_runner.x}-{cfd_runner.y}-{cfd_runner.sbatch_nodes}-{cfd_runner.omp_threads}.csv")
             df = cfd_runner.parse_output()
-            df["x"] = x
-            df["y"] = y
-            df["sbatch_nodes"] = sbatch_nodes
-            df["sbatch_tasks"] = sbatch_tasks
-            df["omp_threads"] = omp_num_threads
+            df["x"] = cfd_runner.x
+            df["y"] = cfd_runner.y
+            df["sbatch_nodes"] = cfd_runner.sbatch_nodes
+            df["sbatch_tasks"] = cfd_runner.sbatch_tasks
+            df["omp_threads"] = cfd_runner.omp_threads
             df.to_csv(csv_path)
             all_df = pd.concat([all_df, df])
-            print(all_df)
+#            print(all_df)
     all_df.to_csv("timing.csv")
 
 if __name__ == "__main__":
