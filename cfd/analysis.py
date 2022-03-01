@@ -9,6 +9,8 @@ import glob
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
+dimensions = [(1000, 200), (2000, 400)]
+omp_num_threads_tested = [1, 2, 3, 4]
 
 def get_time_from_timing_line(line):
     string_time = line.split(" ")[3]
@@ -26,6 +28,7 @@ class CFDRunner:
         self.in_file = os.path.join("test", f"initial-{id}.bin")
         self.out_file = os.path.join("test", f"completed-{id}.bin")
         self.sbatch_file = os.path.join("test", f"submit-{id}.sbatch")
+        self.single_thread = False
 
     def run(self):
         process_output = subprocess.run(["sbatch", self.sbatch_file], stdout=subprocess.PIPE)
@@ -95,6 +98,9 @@ class CFDRunner:
 
     
     def save_sbatch(self):
+        command = f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
+        if self.single_thread:
+            command = f"time ./karman -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
         with open(self.sbatch_file, "w") as fh:
             fh.writelines([
                 "#!/bin/bash\n",
@@ -109,10 +115,8 @@ class CFDRunner:
                 ". /etc/profile.d/modules.sh\n",
                 "module purge\n",
                 "module load cs402-mpi\n",
-                "# time mpirun ./a.out\n",
                 f"export OMP_NUM_THREADS={self.omp_threads}\n",
-                f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
-                "#time ./karman -x 100 -y 100 --infile initial-big.bin -o karman-big.bin -t 25\n",
+                command,
                 "#gprof ./karman\n",
                 "./bin2ppm < karman.bin > karman.ppm\n",
                 "./diffbin karman.vanilla.bin karman.bin\n",
@@ -135,9 +139,19 @@ def collect_data():
         })
     id = 0
     runners = []
-    for x, y in [(1000, 200), (2000, 400)]:
+    for x, y in dimensions:
+        id += 1
+        st_runner = CFDRunner(id)
+        st_runner.single_thread = True
+        st_runner.x = x
+        st_runner.y = y
+        st_runner.sbatch_tasks = sbatch_tasks
+        st_runner.omp_threads = 0
+        st_runner.save_sbatch()
+        runners.append(st_runner)
+
         for sbatch_nodes in [1, 2, 3, 4]:
-            for omp_num_threads in [1, 2, 3, 4]:
+            for omp_num_threads in omp_num_threads_tested:
                 csv_path = os.path.join("timing_data", f"{x}-{y}-{sbatch_nodes}-{omp_num_threads}.csv")
                 if os.path.exists(csv_path):
                     continue
@@ -184,9 +198,55 @@ def plot_graphs():
         df = pd.read_csv(filename)
         dfs.append(df)
     all_df = pd.concat(dfs, axis=0, ignore_index=True)
+    # print(all_df)
+    all_df["loop_time_taken"] = all_df[["timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken"]].sum(axis=1)
+    plot_time_against_thread_count(all_df)
+    plot_speed_up_against_thread_count(all_df)
+
+def plot_time_against_thread_count(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c"]
+    line_styles = ["-", "--", "-."]
+    for (x, y), line_style in zip(dimensions, line_styles):
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+            node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
+            plt.plot(node_df["omp_threads"], node_df["loop_time_taken"], colour + line_style, label=f"{sbatch_nodes} - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.savefig("plots/time_against_thread_count.png", dpi=600)
+    plt.clf()
+
+def plot_speed_up_against_thread_count(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c"]
+    line_styles = ["-", "--", "-."]
+    for (x, y), line_style in zip(dimensions, line_styles):
+        df_st_dim = df_st[df_st["x"] == x]
+        df_st_dim = df_st_dim[df_st_dim["y"] == y]
+        st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
+        print(st_time_taken)
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+            node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
+            plt.plot(node_df["omp_threads"], st_time_taken / node_df["loop_time_taken"], colour + line_style, label=f"{sbatch_nodes} - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.savefig("plots/speed_up_against_thread_count.png", dpi=600)
+    plt.clf()
 
 
 if __name__ == "__main__":
-    subprocess.run(["bash", "./clean_build.sh"])
-    collect_data()
+    # subprocess.run(["bash", "./clean_build.sh"])
+    # collect_data()
     plot_graphs()
