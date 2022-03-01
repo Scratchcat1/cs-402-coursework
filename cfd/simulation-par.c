@@ -124,6 +124,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float rdx2 = 1.0/(delx*delx);
     float rdy2 = 1.0/(dely*dely);
     beta_2 = -omega/(2.0*(rdx2+rdy2));
+    double start_out = MPI_Wtime();
 
     /* Calculate sum of squares */
     for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x-1); i++) {
@@ -131,7 +132,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
-
+    printf("%f sum of squares\n", MPI_Wtime() - start_out);
+    start_out = MPI_Wtime();
     float* recv_buffer = NULL;
     if (proc == 0) {
         recv_buffer = malloc(sizeof(float) * nprocs);
@@ -147,6 +149,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     }
     MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     printf("num threads %d\n", omp_get_max_threads());
+    printf("%f p0 sync\n", MPI_Wtime() - start_out);
 
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
@@ -162,12 +165,14 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
     {
     for (int iter_local = 0; iter_local < itermax; iter_local++) {
+        double start = 0.0;
         for (rb = 0; rb <= 1; rb++) {
-            double start = MPI_Wtime();
+            start = MPI_Wtime();
             #pragma omp for private(i, j) //firstprivate(rb, i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod)
             for (i = i_start; i <=i_end; i++) {
-                for (j = j_start; j <= j_end; j += 1) {
-                    if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
+                int offset = ((i + j_start) % 2 != rb);
+                for (j = j_start+offset; j <= j_end; j += 2) {
+                    //if ((i+j) % 2 != rb) { continue; } // TODO Remove this branch again
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 
@@ -189,15 +194,15 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                     // printf("%d: %d\n", omp_get_thread_num(), i);
                 } /* end of j */
             } /* end of i */
-            #pragma omp barrier
+         //   #pragma omp barrier
             #pragma omp single
             {
-                // printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
+//                printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
                 halo_sync(proc, p, tile_data);
                 res_sum_local = 0.0;
             }
         } /* end of rb */
-
+        start = MPI_Wtime();
         #pragma omp for private(i, j) reduction(+:res_sum_local)
         for (i = i_start; i <= i_end; i++) {
             for (j = j_start; j <= j_end; j++) {
@@ -211,8 +216,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                 }
             }
         }
-        // printf("%d: %f res sum local\n", omp_get_thread_num(), res_sum_local);
-
+//        printf("%f res sum local\n", MPI_Wtime() - start);
+        start = MPI_Wtime();
         #pragma omp single
         {
             /* Partial computation of residual */
@@ -235,6 +240,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
             iter = iter_local;
         }
+//        printf("%f res bcast\n", MPI_Wtime() - start);
         /* convergence? */
         if (*res<eps) break;
     } /* end of iter */

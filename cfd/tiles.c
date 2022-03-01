@@ -1,5 +1,5 @@
-#define t_start 0.0001
-#define t_byte 0.0001
+#define t_start 0.00005
+#define t_byte 0.0000001
 #include <stdio.h>
 #include <mpi.h>
 #include <stdlib.h>
@@ -95,7 +95,7 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 	MPI_Request requests[16];
 	int requests_pos = 0;
 	// No -1 after end_? as the range is non inclusive, so end_? is from the next tile.
-	MPI_Barrier(MPI_COMM_WORLD);
+//      MPI_Barrier(MPI_COMM_WORLD);
 	int sync_left = tile_data->pos_x > 0;
 	int sync_right = tile_data->pos_x < tile_data->num_x - 1;
 	int sync_up = tile_data->pos_y > 0;
@@ -199,6 +199,7 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 		MPI_Wait(&requests[i], &s);
 		// TODO check s is ok
 	}
+//        printf("Sync took %f seconds\n", MPI_Wtime() - start);
 }
 
 void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
