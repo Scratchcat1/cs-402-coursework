@@ -9,7 +9,8 @@ import glob
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
-dimensions = [(1000, 200), (2000, 400)]
+dimensions = [(1000, 200), (2000, 400), (4000, 800)]
+sim_times = [0.2, 0.1, 0.05]
 omp_num_threads_tested = [1, 2, 3, 4]
 
 def get_time_from_timing_line(line):
@@ -139,12 +140,13 @@ def collect_data():
         })
     id = 0
     runners = []
-    for x, y in dimensions:
+    for (x, y), t in zip(dimensions, sim_times):
         id += 1
         st_runner = CFDRunner(id)
         st_runner.single_thread = True
         st_runner.x = x
         st_runner.y = y
+        st_runner.t = t
         st_runner.sbatch_tasks = sbatch_tasks
         st_runner.omp_threads = 0
         st_runner.save_sbatch()
@@ -161,6 +163,7 @@ def collect_data():
                 cfd_runner = CFDRunner(id)
                 cfd_runner.x = x
                 cfd_runner.y = y
+                st_runner.t = t
                 cfd_runner.sbatch_nodes = sbatch_nodes
                 cfd_runner.sbatch_tasks = sbatch_tasks
                 cfd_runner.omp_threads = omp_num_threads
