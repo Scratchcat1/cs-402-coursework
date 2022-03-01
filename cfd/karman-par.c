@@ -225,7 +225,7 @@ int main(int argc, char *argv[])
         if (ifluid > 0) {
             itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
                     eps, itermax, omega, &res, ifluid, &tile_data);
-                    screw_it_sync_everything(proc, u, &tile_data);
+                    //screw_it_sync_everything(proc, u, &tile_data);
         } else {
             itersor = 0;
         }
