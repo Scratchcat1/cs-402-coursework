@@ -10,7 +10,7 @@ import glob
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 dimensions = [(1000, 200), (2000, 400), (4000, 800)]
-sim_times = [0.2, 0.1, 0.05]
+sim_times = [0.2, 0.05, 0.01]
 omp_num_threads_tested = [1, 2, 3, 4]
 
 def get_time_from_timing_line(line):
@@ -46,10 +46,10 @@ class CFDRunner:
             lines = fh.readlines()
 
         i = 0
-        while "I am process" not in lines[i]:
-            i += 1
+#        while i < len(lines) and "I am process" not in lines[i]:
+#            i += 1
 
-        shape_output = lines[i]
+#        shape_output = lines[i]
 
         timing_results = []
 
@@ -99,9 +99,11 @@ class CFDRunner:
 
     
     def save_sbatch(self):
-        command = f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
+        command = f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n"
+        omp_line = f"export OMP_NUM_THREADS={self.omp_threads}\n"
         if self.single_thread:
-            command = f"time ./karman -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n",
+            command = f"time ./karman -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n"
+            omp_line = "\n"
         with open(self.sbatch_file, "w") as fh:
             fh.writelines([
                 "#!/bin/bash\n",
@@ -111,12 +113,12 @@ class CFDRunner:
                 "#SBATCH --ntasks-per-socket=1\n",
                 f"#SBATCH --nodes={self.sbatch_nodes}\n",
                 f"#SBATCH --ntasks={self.sbatch_tasks}\n",
-                f"#SBATCH --cpus-per-task={min(6, self.omp_threads)}\n"
+                f"#SBATCH --cpus-per-task={max(1, min(6, self.omp_threads))}\n"
                 f"#SBATCH --time={self.sbatch_time}\n",
                 ". /etc/profile.d/modules.sh\n",
                 "module purge\n",
                 "module load cs402-mpi\n",
-                f"export OMP_NUM_THREADS={self.omp_threads}\n",
+                omp_line,
                 command,
                 "#gprof ./karman\n",
                 "./bin2ppm < karman.bin > karman.ppm\n",
@@ -147,7 +149,7 @@ def collect_data():
         st_runner.x = x
         st_runner.y = y
         st_runner.t = t
-        st_runner.sbatch_tasks = sbatch_tasks
+        st_runner.sbatch_tasks = 1
         st_runner.omp_threads = 0
         st_runner.save_sbatch()
         runners.append(st_runner)
@@ -163,7 +165,7 @@ def collect_data():
                 cfd_runner = CFDRunner(id)
                 cfd_runner.x = x
                 cfd_runner.y = y
-                st_runner.t = t
+                cfd_runner.t = t
                 cfd_runner.sbatch_nodes = sbatch_nodes
                 cfd_runner.sbatch_tasks = sbatch_tasks
                 cfd_runner.omp_threads = omp_num_threads
@@ -250,6 +252,6 @@ def plot_speed_up_against_thread_count(all_df):
 
 
 if __name__ == "__main__":
-    # subprocess.run(["bash", "./clean_build.sh"])
-    # collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
