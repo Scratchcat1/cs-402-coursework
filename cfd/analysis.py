@@ -207,6 +207,7 @@ def plot_graphs():
     all_df["loop_time_taken"] = all_df[["timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken"]].sum(axis=1)
     plot_time_against_thread_count(all_df)
     plot_speed_up_against_thread_count(all_df)
+    plot_speed_up_against_dimensions(all_df)
 
 def plot_time_against_thread_count(all_df):
     df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
@@ -224,6 +225,8 @@ def plot_time_against_thread_count(all_df):
 
     plt.legend()
     plt.xticks(omp_num_threads_tested)
+    plt.xlabel("OMP Threads")
+    plt.ylabel("Time")
     plt.savefig("plots/time_against_thread_count.png", dpi=600)
     plt.clf()
 
@@ -247,11 +250,38 @@ def plot_speed_up_against_thread_count(all_df):
 
     plt.legend()
     plt.xticks(omp_num_threads_tested)
+    plt.xlabel("OMP Threads")
+    plt.ylabel("Speed up over ST")
     plt.savefig("plots/speed_up_against_thread_count.png", dpi=600)
+    plt.clf()
+
+def plot_speed_up_against_dimensions(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c"]
+    line_styles = ["-", "--", "-.", ":"]
+    st_time_taken = np.array(df_st["loop_time_taken"])
+    print(st_time_taken)
+    fig, ax = plt.subplots(1,1)
+    for omp_threads, line_style in zip(df_par["omp_threads"].unique(), line_styles):
+        dim_df = df_par[df_par["omp_threads"] == omp_threads]
+        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+            node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
+            print(node_df["loop_time_taken"])
+            plt.plot(range(1, len(dimensions) + 1), st_time_taken / np.array(node_df["loop_time_taken"]), colour + line_style, label=f"{sbatch_nodes} - {omp_threads}T")
+
+    plt.legend()
+    plt.xticks(range(1, len(dimensions) + 1))
+    ax.set_xticklabels([f"{x}x{y}" for (x,y) in dimensions])
+    plt.xlabel("Dimensions")
+    plt.ylabel("Speed up over ST")
+    plt.savefig("plots/speed_up_against_dimension.png", dpi=600)
     plt.clf()
 
 
 if __name__ == "__main__":
-    subprocess.run(["bash", "./clean_build.sh"])
-    collect_data()
+    # subprocess.run(["bash", "./clean_build.sh"])
+    # collect_data()
     plot_graphs()
