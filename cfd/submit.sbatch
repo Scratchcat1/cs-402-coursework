@@ -13,7 +13,7 @@ module load cs402-mpi
 # time mpirun ./a.out
 cat /proc/cpuinfo
 export OMP_NUM_THREADS=2
-time mpirun -display-map -display-allocation  --bind-to none ./karman-par -v 3 -x 1000 -y 800 --infile initial-big.bin -o karman-big.bin -t 0.2
+time mpirun -display-map -display-allocation  --bind-to none ./karman-par -v 3 -x 1000 -y 800 --infile initial-big.bin -o karman-big.bin -t 0.02
 #time ./karman -x 100 -y 100 --infile initial-big.bin -o karman-big.bin -t 25
 #gprof ./karman
 ./bin2ppm < karman.bin > karman.ppm

@@ -159,7 +159,6 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     int j_start = max(1, tile_data->start_y);
     int j_end = min(jmax, tile_data->end_y - 1);
     float res_sum_local = 0.0;
-
     /* Red/Black SOR-iteration */
     printf("Going parallel\n");
     #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
@@ -203,6 +202,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             }
         } /* end of rb */
         start = MPI_Wtime();
+//        float res_sum_local = 0.0f;
         #pragma omp for private(i, j) reduction(+:res_sum_local)
         for (i = i_start; i <= i_end; i++) {
             for (j = j_start; j <= j_end; j++) {
@@ -222,22 +222,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         {
             /* Partial computation of residual */
             *res = res_sum_local;
-
-            float* recv_buffer2 = NULL;
-            if (proc == 0) {
-                recv_buffer2 = malloc(sizeof(float) * nprocs);
-            }
-            MPI_Gather(res, 1, MPI_FLOAT, recv_buffer2, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-            if (proc == 0) {
-                float res_sum = 0.0;
-                for (i = 0; i < nprocs; i++) {
-                    res_sum += recv_buffer2[i];
-                }
-                free(recv_buffer2);
-                *res = res_sum;
-                *res = sqrt((*res)/ifull)/p0;
-            }
-            MPI_Bcast(res, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+            MPI_Allreduce(&res_sum_local, res, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+            *res = sqrt((*res)/ifull)/p0;
             iter = iter_local;
         }
 //        printf("%f res bcast\n", MPI_Wtime() - start);
@@ -305,28 +291,13 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
         float max_buffer[2];
         max_buffer[0] = umax_local;
         max_buffer[1] = vmax_local;
-        float* recv_buffer = NULL;
-        if (proc == 0) {
-            recv_buffer = malloc(sizeof(float) * 2 * nprocs);
-        }
-        MPI_Gather(&max_buffer, 2, MPI_FLOAT, recv_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        if (proc == 0) {
-            umax = recv_buffer[0];
-            vmax = recv_buffer[1];
-            for (i = 0; i < nprocs * 2; i += 2) {
-                umax = max(umax, recv_buffer[i]);
-                vmax = max(vmax, recv_buffer[i + 1]);
-            }
-            max_buffer[0] = umax;
-            max_buffer[1] = vmax;
-            free(recv_buffer);
-        }
-        MPI_Bcast(&max_buffer, 2, MPI_FLOAT, 0, MPI_COMM_WORLD);
-        umax = max_buffer[0];
-        vmax = max_buffer[1];
+        float max_buffer2[2];
+        MPI_Allreduce(&max_buffer, &max_buffer2, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
+        umax = max_buffer2[0];
+        vmax = max_buffer2[1];
 
         deltu = delx/umax;
-        deltv = dely/vmax; 
+        deltv = dely/vmax;
         deltRe = 1/(1/(delx*delx)+1/(dely*dely))*Re/2.0;
 
         if (deltu<deltv) {
