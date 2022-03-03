@@ -10,7 +10,7 @@ import glob
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 dimensions = [(660, 120), (1000, 200), (2000, 400), (4000, 800), (8000, 1600)]
-sim_times = [0.5, 0.2, 0.05, 0.01, 0.01]
+sim_times = [0.5, 0.2, 0.05, 0.01, 0.004]
 omp_num_threads_tested = [1, 2, 3, 4, 5, 6]
 
 def get_time_from_timing_line(line):
@@ -110,7 +110,7 @@ class CFDRunner:
         with open(self.sbatch_file, "w") as fh:
             fh.writelines([
                 "#!/bin/bash\n",
-                "#SBATCH --job-name=cfd\n",
+                "#SBATCH --job-name=cfd-graphs\n",
                 "#SBATCH --partition=cs402\n",
                 "#SBATCH --nice=9000\n",
                 "#SBATCH --ntasks-per-socket=1\n",
@@ -160,7 +160,7 @@ def collect_data():
             st_runner.save_sbatch()
             runners.append(st_runner)
 
-        for sbatch_nodes in [1, 2, 3, 4]:
+        for sbatch_nodes in [1, 2, 3, 4, 8]:
             for omp_num_threads in omp_num_threads_tested:
                 csv_path = os.path.join("timing_data", f"{x}-{y}-{sbatch_nodes}-{omp_num_threads}.csv")
                 if os.path.exists(csv_path):
@@ -288,6 +288,6 @@ def plot_speed_up_against_dimensions(all_df):
 
 
 if __name__ == "__main__":
-#    subprocess.run(["bash", "./clean_build.sh"])
-#    collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
