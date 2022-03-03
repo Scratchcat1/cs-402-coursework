@@ -220,8 +220,8 @@ def plot_time_against_thread_count(all_df):
     df_par = df[df["omp_threads"] > 0]
     df_st = df[df["omp_threads"] == 0]
     # print(df)
-    colours = ["r", "g", "b", "c"]
-    line_styles = ["-", "--", "-."]
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":"]
     for (x, y), line_style in zip(dimensions, line_styles):
         dim_df = df_par[df_par["x"] == x]
         dim_df = dim_df[dim_df["y"] == y]
@@ -241,8 +241,8 @@ def plot_speed_up_against_thread_count(all_df):
     df_par = df[df["omp_threads"] > 0]
     df_st = df[df["omp_threads"] == 0]
     # print(df)
-    colours = ["r", "g", "b", "c"]
-    line_styles = ["-", "--", "-."]
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":", ":"]
     for (x, y), line_style in zip(dimensions, line_styles):
         df_st_dim = df_st[df_st["x"] == x]
         df_st_dim = df_st_dim[df_st_dim["y"] == y]
@@ -266,12 +266,12 @@ def plot_speed_up_against_dimensions(all_df):
     df_par = df[df["omp_threads"] > 0]
     df_st = df[df["omp_threads"] == 0]
     # print(df)
-    colours = ["r", "g", "b", "c"]
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":"]
     st_time_taken = np.array(df_st["loop_time_taken"])
     print(st_time_taken)
     fig, ax = plt.subplots(1,1)
-    for omp_threads, line_style in zip(df_par["omp_threads"].unique(), line_styles):
+    for omp_threads, line_style in zip([1, 2, 4, 6], line_styles):
         dim_df = df_par[df_par["omp_threads"] == omp_threads]
         for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
             node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
@@ -288,6 +288,6 @@ def plot_speed_up_against_dimensions(all_df):
 
 
 if __name__ == "__main__":
-    subprocess.run(["bash", "./clean_build.sh"])
-    collect_data()
+#    subprocess.run(["bash", "./clean_build.sh"])
+#    collect_data()
     plot_graphs()
