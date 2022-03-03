@@ -9,8 +9,8 @@ import glob
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
-dimensions = [(1000, 200), (2000, 400), (4000, 800)]
-sim_times = [0.2, 0.05, 0.01]
+dimensions = [(660, 120), (1000, 200), (2000, 400), (4000, 800), (8000, 1600)]
+sim_times = [0.5, 0.2, 0.05, 0.01, 0.01]
 omp_num_threads_tested = [1, 2, 3, 4]
 
 def get_time_from_timing_line(line):
@@ -24,7 +24,7 @@ class CFDRunner:
         self.t = 0.2
         self.sbatch_nodes = 1
         self.sbatch_tasks = 0.5
-        self.sbatch_time = "00:10:00"
+        self.sbatch_time = "00:03:00"
         self.omp_threads = 6
         self.in_file = os.path.join("test", f"initial-{id}.bin")
         self.out_file = os.path.join("test", f"completed-{id}.bin")
@@ -61,37 +61,40 @@ class CFDRunner:
         update_velocity_time_taken = None
         boundary_time_taken = None
         for line in lines[i:]:
-            if "--- Timestep" in line:
-                if current_time is not None:
-                    timing_results.append([
-                        current_time,
-                        timestep_time_taken,
-                        compute_velocity_time_taken,
-                        rhs_time_taken,
-                        possion_time_taken,
-                        update_velocity_time_taken,
-                        boundary_time_taken
-                        ])
+            try:
+                if "--- Timestep" in line:
+                    if current_time is not None:
+                        timing_results.append([
+                            current_time,
+                            timestep_time_taken,
+                            compute_velocity_time_taken,
+                            rhs_time_taken,
+                            possion_time_taken,
+                            update_velocity_time_taken,
+                            boundary_time_taken
+                            ])
 
-                current_time = float(line.split(" ")[3])
+                    current_time = float(line.split(" ")[3])
 
-            elif "timestep_time_taken" in line:
-                timestep_time_taken = float(line.split(" ")[1])
+                elif "timestep_time_taken" in line:
+                    timestep_time_taken = float(line.split(" ")[1])
 
-            elif "compute_velocity_time_taken" in line:
-                compute_velocity_time_taken = float(line.split(" ")[1])
+                elif "compute_velocity_time_taken" in line:
+                    compute_velocity_time_taken = float(line.split(" ")[1])
 
-            elif "rhs_time_taken" in line:
-                rhs_time_taken = float(line.split(" ")[1])
+                elif "rhs_time_taken" in line:
+                    rhs_time_taken = float(line.split(" ")[1])
 
-            elif "possion_time_taken" in line:
-                possion_time_taken = float(line.split(" ")[1])
+                elif "possion_time_taken" in line:
+                    possion_time_taken = float(line.split(" ")[1])
 
-            elif "update_velocity_time_taken" in line:
-                update_velocity_time_taken = float(line.split(" ")[1])
+                elif "update_velocity_time_taken" in line:
+                    update_velocity_time_taken = float(line.split(" ")[1])
 
-            elif "boundary_time_taken" in line:
-                boundary_time_taken = float(line.split(" ")[1])
+                elif "boundary_time_taken" in line:
+                    boundary_time_taken = float(line.split(" ")[1])
+            except Exception as e:
+                print("Exception", e)
         
         df = pd.DataFrame(timing_results, columns=("Timestep", "timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken"))
         return df
@@ -144,15 +147,18 @@ def collect_data():
     runners = []
     for (x, y), t in zip(dimensions, sim_times):
         id += 1
-        st_runner = CFDRunner(id)
-        st_runner.single_thread = True
-        st_runner.x = x
-        st_runner.y = y
-        st_runner.t = t
-        st_runner.sbatch_tasks = 1
-        st_runner.omp_threads = 0
-        st_runner.save_sbatch()
-        runners.append(st_runner)
+        csv_path = os.path.join("timing_data", f"{x}-{y}-1-0.csv")
+        print(csv_path)
+        if not os.path.exists(csv_path):
+            st_runner = CFDRunner(id)
+            st_runner.single_thread = True
+            st_runner.x = x
+            st_runner.y = y
+            st_runner.t = t
+            st_runner.sbatch_tasks = 1
+            st_runner.omp_threads = 0
+            st_runner.save_sbatch()
+            runners.append(st_runner)
 
         for sbatch_nodes in [1, 2, 3, 4]:
             for omp_num_threads in omp_num_threads_tested:
@@ -282,6 +288,6 @@ def plot_speed_up_against_dimensions(all_df):
 
 
 if __name__ == "__main__":
-    # subprocess.run(["bash", "./clean_build.sh"])
-    # collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
