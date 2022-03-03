@@ -12,6 +12,10 @@ pd.set_option('display.max_rows', None)
 dimensions = [(660, 120), (1000, 200), (2000, 400), (4000, 800), (8000, 1600)]
 sim_times = [0.5, 0.2, 0.05, 0.01, 0.004]
 omp_num_threads_tested = [1, 2, 3, 4, 5, 6]
+sbatch_nodes_tested = [1, 2, 3, 4, 8]
+
+omp_num_threads_plot = [1, 2, 4, 6]
+sbatch_nodes_plot = [1, 2, 4, 8]
 
 def get_time_from_timing_line(line):
     string_time = line.split(" ")[3]
@@ -160,7 +164,7 @@ def collect_data():
             st_runner.save_sbatch()
             runners.append(st_runner)
 
-        for sbatch_nodes in [1, 2, 3, 4, 8]:
+        for sbatch_nodes in sbatch_nodes_tested:
             for omp_num_threads in omp_num_threads_tested:
                 csv_path = os.path.join("timing_data", f"{x}-{y}-{sbatch_nodes}-{omp_num_threads}.csv")
                 if os.path.exists(csv_path):
@@ -214,6 +218,10 @@ def plot_graphs():
     plot_time_against_thread_count(all_df)
     plot_speed_up_against_thread_count(all_df)
     plot_speed_up_against_dimensions(all_df)
+    plot_speed_up_against_sbatch_nodes(all_df)
+    plot_parallel_efficiency_against_thread_count(all_df)
+    plot_parallel_efficiency_against_sbatch_nodes(all_df)
+    plot_parallel_efficiency_against_dimensions(all_df)
 
 def plot_time_against_thread_count(all_df):
     df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
@@ -225,7 +233,7 @@ def plot_time_against_thread_count(all_df):
     for (x, y), line_style in zip(dimensions, line_styles):
         dim_df = df_par[df_par["x"] == x]
         dim_df = dim_df[dim_df["y"] == y]
-        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+        for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
             node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
             plt.plot(node_df["omp_threads"], node_df["loop_time_taken"], colour + line_style, label=f"{sbatch_nodes} - {x}x{y}")
 
@@ -250,7 +258,7 @@ def plot_speed_up_against_thread_count(all_df):
         print(st_time_taken)
         dim_df = df_par[df_par["x"] == x]
         dim_df = dim_df[dim_df["y"] == y]
-        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+        for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
             node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
             plt.plot(node_df["omp_threads"], st_time_taken / node_df["loop_time_taken"], colour + line_style, label=f"{sbatch_nodes} - {x}x{y}")
 
@@ -259,6 +267,31 @@ def plot_speed_up_against_thread_count(all_df):
     plt.xlabel("OMP Threads")
     plt.ylabel("Speed up over ST")
     plt.savefig("plots/speed_up_against_thread_count.png", dpi=600)
+    plt.clf()
+
+def plot_parallel_efficiency_against_thread_count(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":", ":"]
+    for (x, y), line_style in zip(dimensions, line_styles):
+        df_st_dim = df_st[df_st["x"] == x]
+        df_st_dim = df_st_dim[df_st_dim["y"] == y]
+        st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
+        print(st_time_taken)
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
+            node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
+            plt.plot(node_df["omp_threads"], (st_time_taken / node_df["loop_time_taken"]) / (node_df["omp_threads"] * sbatch_nodes), colour + line_style, label=f"{sbatch_nodes} - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.xlabel("OMP Threads")
+    plt.ylabel("Parallel Eff vs ST")
+    plt.savefig("plots/parallel_efficiency_against_thread_count.png", dpi=600)
     plt.clf()
 
 def plot_speed_up_against_dimensions(all_df):
@@ -271,12 +304,12 @@ def plot_speed_up_against_dimensions(all_df):
     st_time_taken = np.array(df_st["loop_time_taken"])
     print(st_time_taken)
     fig, ax = plt.subplots(1,1)
-    for omp_threads, line_style in zip([1, 2, 4, 6], line_styles):
+    for omp_threads, line_style in zip(omp_num_threads_plot, line_styles):
         dim_df = df_par[df_par["omp_threads"] == omp_threads]
-        for sbatch_nodes, colour in zip(dim_df["sbatch_nodes"].unique(), colours):
+        for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
             node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
             print(node_df["loop_time_taken"])
-            plt.plot(range(1, len(dimensions) + 1), st_time_taken / np.array(node_df["loop_time_taken"]), colour + line_style, label=f"{sbatch_nodes} - {omp_threads}T")
+            plt.plot(range(1, len(dimensions) + 1), st_time_taken / np.array(node_df["loop_time_taken"]), colour + line_style, label=f"{sbatch_nodes}N - {omp_threads}T")
 
     plt.legend()
     plt.xticks(range(1, len(dimensions) + 1))
@@ -286,8 +319,83 @@ def plot_speed_up_against_dimensions(all_df):
     plt.savefig("plots/speed_up_against_dimension.png", dpi=600)
     plt.clf()
 
+def plot_parallel_efficiency_against_dimensions(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":"]
+    st_time_taken = np.array(df_st["loop_time_taken"])
+    print(st_time_taken)
+    fig, ax = plt.subplots(1,1)
+    for omp_threads, line_style in zip(omp_num_threads_plot, line_styles):
+        dim_df = df_par[df_par["omp_threads"] == omp_threads]
+        for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
+            node_df = dim_df[dim_df["sbatch_nodes"] == sbatch_nodes]
+            print(node_df["loop_time_taken"])
+            plt.plot(range(1, len(dimensions) + 1), (st_time_taken / np.array(node_df["loop_time_taken"])) / (sbatch_nodes * omp_threads), colour + line_style, label=f"{sbatch_nodes}N - {omp_threads}T")
+
+    plt.legend()
+    plt.xticks(range(1, len(dimensions) + 1))
+    ax.set_xticklabels([f"{x}x{y}" for (x,y) in dimensions])
+    plt.xlabel("Dimensions")
+    plt.ylabel("Parallel Eff vs ST")
+    plt.savefig("plots/parallel_efficiency_against_dimension.png", dpi=600)
+    plt.clf()
+
+def plot_speed_up_against_sbatch_nodes(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":", ":"]
+    for (x, y), line_style in zip(dimensions, line_styles):
+        df_st_dim = df_st[df_st["x"] == x]
+        df_st_dim = df_st_dim[df_st_dim["y"] == y]
+        st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
+        print(st_time_taken)
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for omp_threads, colour in zip(omp_num_threads_plot, colours):
+            node_df = dim_df[dim_df["omp_threads"] == omp_threads]
+            plt.plot(node_df["sbatch_nodes"], st_time_taken / node_df["loop_time_taken"], colour + line_style, label=f"{omp_threads}T - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.xlabel("Nodes")
+    plt.ylabel("Speed up over ST")
+    plt.savefig("plots/speed_up_against_sbatch_nodes.png", dpi=600)
+    plt.clf()
+
+def plot_parallel_efficiency_against_sbatch_nodes(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    df_st = df[df["omp_threads"] == 0]
+    # print(df)
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":", ":"]
+    for (x, y), line_style in zip(dimensions, line_styles):
+        df_st_dim = df_st[df_st["x"] == x]
+        df_st_dim = df_st_dim[df_st_dim["y"] == y]
+        st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
+        print(st_time_taken)
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for omp_threads, colour in zip(omp_num_threads_plot, colours):
+            node_df = dim_df[dim_df["omp_threads"] == omp_threads]
+            plt.plot(node_df["sbatch_nodes"], (st_time_taken / node_df["loop_time_taken"]) / (omp_threads * node_df["sbatch_nodes"]), colour + line_style, label=f"{omp_threads}T - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.xlabel("Nodes")
+    plt.ylabel("Parallel Eff vs ST")
+    plt.savefig("plots/parallel_efficiency_against_sbatch_nodes.png", dpi=600)
+    plt.clf()
+
 
 if __name__ == "__main__":
-    subprocess.run(["bash", "./clean_build.sh"])
-    collect_data()
+    # subprocess.run(["bash", "./clean_build.sh"])
+    # collect_data()
     plot_graphs()
