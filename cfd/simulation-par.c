@@ -137,22 +137,6 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
-//    printf("%f sum of squares\n", MPI_Wtime() - start_out);
-//    start_out = MPI_Wtime();
-//    float* recv_buffer = NULL;
- //   if (proc == 0) {
-  //      recv_buffer = malloc(sizeof(float) * nprocs);
-  // }
-//    MPI_Gather(&p0, 1, MPI_FLOAT, recv_buffer, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
-//    if (proc == 0) {
-//        float p0sum = 0.0;
-//        for (i = 0; i < nprocs; i++) {
-//            p0sum += recv_buffer[i];
-//        }
-//        p0 = p0sum;
-//        free(recv_buffer);
-//    }
-//    MPI_Bcast(&p0, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     float p0sum;
     MPI_Allreduce(&p0, &p0sum, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     p0 = p0sum;

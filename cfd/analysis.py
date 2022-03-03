@@ -11,7 +11,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 dimensions = [(660, 120), (1000, 200), (2000, 400), (4000, 800), (8000, 1600)]
 sim_times = [0.5, 0.2, 0.05, 0.01, 0.01]
-omp_num_threads_tested = [1, 2, 3, 4]
+omp_num_threads_tested = [1, 2, 3, 4, 5, 6]
 
 def get_time_from_timing_line(line):
     string_time = line.split(" ")[3]
@@ -24,7 +24,7 @@ class CFDRunner:
         self.t = 0.2
         self.sbatch_nodes = 1
         self.sbatch_tasks = 0.5
-        self.sbatch_time = "00:03:00"
+        self.sbatch_time = "00:07:00"
         self.omp_threads = 6
         self.in_file = os.path.join("test", f"initial-{id}.bin")
         self.out_file = os.path.join("test", f"completed-{id}.bin")
@@ -102,7 +102,7 @@ class CFDRunner:
 
     
     def save_sbatch(self):
-        command = f"time mpirun -npersocket 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n"
+        command = f"time mpirun -n {self.sbatch_nodes} -npernode 1 --bind-to socket ./karman-par -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n"
         omp_line = f"export OMP_NUM_THREADS={self.omp_threads}\n"
         if self.single_thread:
             command = f"time ./karman -x {self.x} -y {self.y} --infile {self.in_file} -o {self.out_file} -t {self.t}\n"
@@ -111,12 +111,12 @@ class CFDRunner:
             fh.writelines([
                 "#!/bin/bash\n",
                 "#SBATCH --job-name=cfd\n",
-                "#SBATCH --partition=desktop-batch\n",
+                "#SBATCH --partition=cs402\n",
                 "#SBATCH --nice=9000\n",
                 "#SBATCH --ntasks-per-socket=1\n",
                 f"#SBATCH --nodes={self.sbatch_nodes}\n",
-                f"#SBATCH --ntasks={self.sbatch_tasks}\n",
-                f"#SBATCH --cpus-per-task={max(1, min(6, self.omp_threads))}\n"
+                f"#SBATCH --ntasks-per-node=1\n",
+                f"#SBATCH --cpus-per-task=12\n"
                 f"#SBATCH --time={self.sbatch_time}\n",
                 ". /etc/profile.d/modules.sh\n",
                 "module purge\n",
@@ -166,7 +166,7 @@ def collect_data():
                 if os.path.exists(csv_path):
                     continue
                 id += 1
-                sbatch_tasks = int(sbatch_nodes * np.ceil(omp_num_threads / 6))
+                sbatch_tasks = sbatch_nodes * 12 #int(sbatch_nodes * np.ceil(omp_num_threads / 6))
                 print(sbatch_tasks, sbatch_nodes, omp_num_threads)
                 cfd_runner = CFDRunner(id)
                 cfd_runner.x = x
