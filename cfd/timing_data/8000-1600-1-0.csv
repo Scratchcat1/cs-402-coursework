@@ -1,2 +1,2 @@
 ,Timestep,timestep_time_taken,compute_velocity_time_taken,rhs_time_taken,possion_time_taken,update_velocity_time_taken,boundary_time_taken,sync_time_taken,possion_p_loop_time_taken,possion_res_loop_time_taken,x,y,sbatch_nodes,sbatch_tasks,omp_threads
-0,0.0,0.04114,0.670353,0.109946,24.607415,0.098505,0.010651,8.2e-05,16.085062,9.471765,8000,1600,1,12,0
+0,0.0,0.04114,0.670353,0.109946,24.607415,0.098505,0.010651,0.0,15.585062,9.271765,8000,1600,1,12,0

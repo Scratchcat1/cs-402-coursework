@@ -184,7 +184,8 @@ int main(int argc, char *argv[])
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
     /* Main loop */
     for (t = 0.0; t < t_end; t += del_t, iters++) {
-        double possion_p_loop_time_taken, possion_res_loop_time_taken = 0.0;
+        double possion_p_loop_time_taken = 0.0;
+        double possion_res_loop_time_taken = 0.0;
         printf("\n --- Timestep %f of %f ---\n", t, t_end);
         start = MPI_Wtime();
         set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau);
