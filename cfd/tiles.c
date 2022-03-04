@@ -90,7 +90,7 @@ void free_tile_data(struct TileData* tile_data) {
 }
 
 
-void halo_sync(int rank, float** array, struct TileData* tile_data) {
+void halo_sync(int rank, float** array, struct TileData* tile_data, double * sync_time_taken) {
 	double start = MPI_Wtime();
 	MPI_Request requests[16];
 	int requests_pos = 0;
@@ -199,7 +199,9 @@ void halo_sync(int rank, float** array, struct TileData* tile_data) {
 		MPI_Wait(&requests[i], &s);
 		// TODO check s is ok
 	}
-//        printf("Sync took %f seconds\n", MPI_Wtime() - start);
+	double time_taken = MPI_Wtime() - start;
+	// printf("Sync took %f seconds\n", time_taken);
+	*sync_time_taken += time_taken;
 }
 
 void sync_tile_to_root(int rank, float** array, struct TileData* tile_data) {
@@ -326,6 +328,7 @@ void print_matrix(float** array, int cols, int rows)
 void test_halo_sync(int rank, int nprocs) {
 	int COLS = 31;
 	int ROWS = 31;
+	double t = 0.0;
 	float **matrix = alloc_floatmatrix(COLS, ROWS);
 	struct TileData tile_data;
 	int output_proc = 17;
@@ -340,7 +343,7 @@ void test_halo_sync(int rank, int nprocs) {
 	if (rank == output_proc) {
 		print_matrix(matrix, COLS, ROWS);
 	}
-	halo_sync(rank, matrix, &tile_data);
+	halo_sync(rank, matrix, &tile_data, &t);
 	if (rank == output_proc) {
 		print_matrix(matrix, COLS, ROWS);
 	}
@@ -353,7 +356,7 @@ void test_halo_sync(int rank, int nprocs) {
 	if (rank == output_proc) {
 		print_matrix(matrix, COLS, ROWS);
 	}
-	halo_sync(rank, matrix, &tile_data);
+	halo_sync(rank, matrix, &tile_data, &t);
 	if (rank == output_proc) {
 		print_matrix(matrix, COLS, ROWS);
 	}

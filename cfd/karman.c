@@ -79,7 +79,6 @@ int main(int argc, char *argv[])
     char  **flag;
     int init_case, iters = 0;
     int show_help = 0, show_usage = 0, show_version = 0;
-    int single_thread_mode = 0;
 
     progname = argv[0];
     infile = strdup("karman.bin");
@@ -116,9 +115,6 @@ int main(int argc, char *argv[])
                 break;
             case 't':
                 t_end = atof(optarg);
-                break;
-            case 's':
-                single_thread_mode = 1;
                 break;
             default:
                 show_usage = 1;
@@ -188,6 +184,7 @@ int main(int argc, char *argv[])
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
     /* Main loop */
     for (t = 0.0; t < t_end; t += del_t, iters++) {
+        double possion_p_loop_time_taken, possion_res_loop_time_taken = 0.0;
         printf("\n --- Timestep %f of %f ---\n", t, t_end);
         start = MPI_Wtime();
         set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau);
@@ -206,13 +203,8 @@ int main(int argc, char *argv[])
 
         start = MPI_Wtime();
         if (ifluid > 0) {
-            if (single_thread_mode) {
-                itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
-                        eps, itermax, omega, &res, ifluid);
-            } else {
-                itersor = mpi_poisson(p, rhs, flag, imax, jmax, delx, dely,
-                        eps, itermax, omega, &res, ifluid);
-            }
+            itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
+                    eps, itermax, omega, &res, ifluid, &possion_p_loop_time_taken, &possion_res_loop_time_taken);
         } else {
             itersor = 0;
         }
@@ -237,6 +229,10 @@ int main(int argc, char *argv[])
         printf("possion_time_taken: %f\n", possion_time_taken);
         printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
         printf("boundary_time_taken: %f\n", boundary_time_taken);
+
+        printf("sync_time_taken: 0.0\n");
+        printf("possion_p_loop_time_taken: %f\n", possion_p_loop_time_taken);
+        printf("possion_res_loop_time_taken: %f\n", possion_res_loop_time_taken);
     } /* End of main loop */
   
     if (outfile != NULL && strcmp(outfile, "") != 0 && proc == 0) {

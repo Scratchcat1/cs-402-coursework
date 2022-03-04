@@ -15,7 +15,7 @@ extern int nprocs, proc;
 /* Computation of tentative velocity field (f, g) */
 void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
-    float gamma, float Re, struct TileData* tile_data)
+    float gamma, float Re, struct TileData* tile_data, double * sync_time_taken)
 {
     #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re)
     {
@@ -91,14 +91,14 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         }
     }
     }
-    halo_sync(proc, f, tile_data);
-    halo_sync(proc, g, tile_data);
+    halo_sync(proc, f, tile_data, sync_time_taken);
+    halo_sync(proc, g, tile_data, sync_time_taken);
 }
 
 
 /* Calculate the right hand side of the pressure equation */
 void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
-    int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
+    int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken)
 {
     int i, j;
     for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x-1);i++) {
@@ -112,16 +112,17 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
             }
         }
     }
-    halo_sync(proc, rhs, tile_data);
+    halo_sync(proc, rhs, tile_data, sync_time_taken);
 }
 
 /* Red/Black SOR to solve the poisson equation */
 int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float delx, float dely, float eps, int itermax, float omega,
-    float *res, int ifull, struct TileData* tile_data)
+    float *res, int ifull, struct TileData* tile_data, double * sync_time_taken,
+     double* possion_p_loop_time_taken, double* possion_res_loop_time_taken)
 {
     int i, j, iter;
-    float add, beta_2, beta_mod;
+    float add, beta_2, beta_mod = 0.0;
     float p0 = 0.0;
     
     int rb; /* Red-black value. */
@@ -129,7 +130,6 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float rdx2 = 1.0/(delx*delx);
     float rdy2 = 1.0/(dely*dely);
     beta_2 = -omega/(2.0*(rdx2+rdy2));
-    double start_out = MPI_Wtime();
 
     /* Calculate sum of squares */
     for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x-1); i++) {
@@ -137,9 +137,12 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
         }
     }
+
+    double start_out = MPI_Wtime();
     float p0sum;
     MPI_Allreduce(&p0, &p0sum, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     p0 = p0sum;
+    *sync_time_taken += MPI_Wtime() - start_out;
 //    printf("num threads %d\n", omp_get_max_threads());
 //    printf("%f p0 sync\n", MPI_Wtime() - start_out);
 
@@ -153,7 +156,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float res_sum_local = 0.0;
     /* Red/Black SOR-iteration */
  //   printf("Going parallel\n");
-    #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
+    #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local, sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
     {
     for (int iter_local = 0; iter_local < itermax; iter_local++) {
         double start = 0.0;
@@ -187,8 +190,10 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
          //   #pragma omp barrier
             #pragma omp single
             {
+                double time_taken = MPI_Wtime() - start;
+                *possion_p_loop_time_taken += time_taken;
 //                printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
-                halo_sync(proc, p, tile_data);
+                halo_sync(proc, p, tile_data, sync_time_taken);
                 res_sum_local = 0.0;
             }
         } /* end of rb */
@@ -207,10 +212,12 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                 }
             }
         }
+        double time_taken = MPI_Wtime() - start;
 //        printf("%f res sum local\n", MPI_Wtime() - start);
         start = MPI_Wtime();
         #pragma omp single
         {
+            *possion_res_loop_time_taken += time_taken;
             /* Partial computation of residual */
             *res = res_sum_local;
             MPI_Allreduce(&res_sum_local, res, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
@@ -230,7 +237,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
  * velocity values and the new pressure matrix
  */
 void update_velocity(float **u, float **v, float **f, float **g, float **p,
-    char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
+    char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken)
 {
     int i, j;
     for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
@@ -249,8 +256,8 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
             }
         }
     }
-    halo_sync(proc, u, tile_data);
-    halo_sync(proc, v, tile_data);
+    halo_sync(proc, u, tile_data, sync_time_taken);
+    halo_sync(proc, v, tile_data, sync_time_taken);
 }
 
 
@@ -259,7 +266,7 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
  * timestep). Otherwise the simulation becomes unstable.
  */
 void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
-    float dely, float **u, float **v, float Re, float tau, struct TileData* tile_data)
+    float dely, float **u, float **v, float Re, float tau, struct TileData* tile_data, double * sync_time_taken)
 {
     int i, j;
     float umax, vmax, umax_local, vmax_local, deltu, deltv, deltRe; 
@@ -279,6 +286,7 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
             }
         }
 
+        double start = MPI_Wtime();
         float max_buffer[2];
         max_buffer[0] = umax_local;
         max_buffer[1] = vmax_local;
@@ -286,6 +294,7 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
         MPI_Allreduce(&max_buffer, &max_buffer2, 2, MPI_FLOAT, MPI_MAX, MPI_COMM_WORLD);
         umax = max_buffer2[0];
         vmax = max_buffer2[1];
+        *sync_time_taken += MPI_Wtime() - start;
 
         deltu = delx/umax;
         deltv = dely/vmax;

@@ -198,34 +198,40 @@ int main(int argc, char *argv[])
         }
         init_flag(flag, imax, jmax, delx, dely, &ibound);
         apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
-        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary. All threads generate this data
-        halo_sync(proc, v, &tile_data);
-        halo_sync(proc, p, &tile_data);
+        double sync_time_taken = 0.0;
+        halo_sync(proc, u, &tile_data, &sync_time_taken); // TODO these are probably not necessary. All threads generate this data
+        halo_sync(proc, v, &tile_data, &sync_time_taken);
+        halo_sync(proc, p, &tile_data, &sync_time_taken);
     }
 
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
+    double sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken = 0.0;
     /* Main loop */
     for (t = 0.0; t < t_end; t += del_t, iters++) {
+        sync_time_taken = 0.0;
+        possion_p_loop_time_taken = 0.0;
+        possion_res_loop_time_taken = 0.0;
+
         start = MPI_Wtime();
-        set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau, &tile_data);
+        set_timestep_interval(&del_t, imax, jmax, delx, dely, u, v, Re, tau, &tile_data, &sync_time_taken);
         timestep_time_taken = MPI_Wtime() - start;
 
         ifluid = (imax * jmax) - ibound;
 
         start = MPI_Wtime();
         compute_tentative_velocity(u, v, f, g, flag, imax, jmax,
-            del_t, delx, dely, gamma, Re, &tile_data);
+            del_t, delx, dely, gamma, Re, &tile_data, &sync_time_taken);
         compute_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
-        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely, &tile_data);
+        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely, &tile_data, &sync_time_taken);
         rhs_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
         if (ifluid > 0) {
             itersor = poisson(p, rhs, flag, imax, jmax, delx, dely,
-                    eps, itermax, omega, &res, ifluid, &tile_data);
-                    //screw_it_sync_everything(proc, u, &tile_data);
+                    eps, itermax, omega, &res, ifluid, &tile_data, &sync_time_taken, &possion_p_loop_time_taken, &possion_res_loop_time_taken);
+                    //screw_it_sync_everything(proc, u, &tile_data, &sync_time_taken);
         } else {
             itersor = 0;
         }
@@ -236,13 +242,13 @@ int main(int argc, char *argv[])
                 iters, t+del_t, del_t, itersor, res, ibound);
         }
         start = MPI_Wtime();
-        update_velocity(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, &tile_data);
+        update_velocity(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, &tile_data, &sync_time_taken);
         update_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
         apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
-        halo_sync(proc, u, &tile_data); // TODO these are probably not necessary
-        halo_sync(proc, v, &tile_data);
+        halo_sync(proc, u, &tile_data, &sync_time_taken); // TODO these are probably not necessary
+        halo_sync(proc, v, &tile_data, &sync_time_taken);
         boundary_time_taken = MPI_Wtime() - start;
         if (proc == 0) {
             printf("\n --- Timestep %f of %f ---\n", t, t_end);
@@ -252,6 +258,10 @@ int main(int argc, char *argv[])
             printf("possion_time_taken: %f\n", possion_time_taken);
             printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
             printf("boundary_time_taken: %f\n", boundary_time_taken);
+
+            printf("sync_time_taken: %f\n", sync_time_taken);
+            printf("possion_p_loop_time_taken: %f\n", possion_p_loop_time_taken);
+            printf("possion_res_loop_time_taken: %f\n", possion_res_loop_time_taken);
         }
     } /* End of main loop */
     

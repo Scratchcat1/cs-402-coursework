@@ -16,6 +16,7 @@ sbatch_nodes_tested = [1, 2, 3, 4, 8]
 
 omp_num_threads_plot = [1, 2, 4, 6]
 sbatch_nodes_plot = [1, 2, 4, 8]
+dimensions_plot = [(660, 120), (2000, 400), (8000, 1600)]
 
 def get_time_from_timing_line(line):
     string_time = line.split(" ")[3]
@@ -64,6 +65,9 @@ class CFDRunner:
         possion_time_taken = None
         update_velocity_time_taken = None
         boundary_time_taken = None
+        sync_time_taken = None
+        possion_p_loop_time_taken = None
+        possion_res_loop_time_taken = None
         for line in lines[i:]:
             try:
                 if "--- Timestep" in line:
@@ -75,7 +79,10 @@ class CFDRunner:
                             rhs_time_taken,
                             possion_time_taken,
                             update_velocity_time_taken,
-                            boundary_time_taken
+                            boundary_time_taken,
+                            sync_time_taken,
+                            possion_p_loop_time_taken,
+                            possion_res_loop_time_taken,
                             ])
 
                     current_time = float(line.split(" ")[3])
@@ -97,6 +104,15 @@ class CFDRunner:
 
                 elif "boundary_time_taken" in line:
                     boundary_time_taken = float(line.split(" ")[1])
+                
+                elif "sync_time_taken" in line:
+                    sync_time_taken = float(line.split(" ")[1])
+
+                elif "possion_p_loop_time_taken" in line:
+                    possion_p_loop_time_taken = float(line.split(" ")[1])
+
+                elif "possion_res_loop_time_taken" in line:
+                    possion_res_loop_time_taken = float(line.split(" ")[1])
             except Exception as e:
                 print("Exception", e)
         
@@ -146,6 +162,9 @@ def collect_data():
         "possion_time_taken": pd.Series(dtype='float'),
         "update_velocity_time_taken": pd.Series(dtype='float'),
         "boundary_time_taken": pd.Series(dtype='float'),
+        "sync_time_taken": pd.Series(dtype='float'),
+        "possion_p_loop_time_taken": pd.Series(dtype='float'),
+        "possion_res_loop_time_taken": pd.Series(dtype='float'),
         })
     id = 0
     runners = []
@@ -230,7 +249,7 @@ def plot_time_against_thread_count(all_df):
     # print(df)
     colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":"]
-    for (x, y), line_style in zip(dimensions, line_styles):
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
         dim_df = df_par[df_par["x"] == x]
         dim_df = dim_df[dim_df["y"] == y]
         for sbatch_nodes, colour in zip(sbatch_nodes_plot, colours):
@@ -251,7 +270,7 @@ def plot_speed_up_against_thread_count(all_df):
     # print(df)
     colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":", ":"]
-    for (x, y), line_style in zip(dimensions, line_styles):
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
         df_st_dim = df_st[df_st["x"] == x]
         df_st_dim = df_st_dim[df_st_dim["y"] == y]
         st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
@@ -276,7 +295,7 @@ def plot_parallel_efficiency_against_thread_count(all_df):
     # print(df)
     colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":", ":"]
-    for (x, y), line_style in zip(dimensions, line_styles):
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
         df_st_dim = df_st[df_st["x"] == x]
         df_st_dim = df_st_dim[df_st_dim["y"] == y]
         st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
@@ -351,7 +370,7 @@ def plot_speed_up_against_sbatch_nodes(all_df):
     # print(df)
     colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":", ":"]
-    for (x, y), line_style in zip(dimensions, line_styles):
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
         df_st_dim = df_st[df_st["x"] == x]
         df_st_dim = df_st_dim[df_st_dim["y"] == y]
         st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
@@ -376,7 +395,7 @@ def plot_parallel_efficiency_against_sbatch_nodes(all_df):
     # print(df)
     colours = ["r", "g", "b", "c", "m", "k", "y"]
     line_styles = ["-", "--", "-.", ":", ":"]
-    for (x, y), line_style in zip(dimensions, line_styles):
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
         df_st_dim = df_st[df_st["x"] == x]
         df_st_dim = df_st_dim[df_st_dim["y"] == y]
         st_time_taken = df_st_dim["loop_time_taken"].iloc[0]
