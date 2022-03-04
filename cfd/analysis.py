@@ -116,7 +116,7 @@ class CFDRunner:
             except Exception as e:
                 print("Exception", e)
         
-        df = pd.DataFrame(timing_results, columns=("Timestep", "timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken"))
+        df = pd.DataFrame(timing_results, columns=("Timestep", "timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken", "sync_time_taken", "possion_p_loop_time_taken", "possion_res_loop_time_taken"))
         return df
 
 
@@ -415,6 +415,6 @@ def plot_parallel_efficiency_against_sbatch_nodes(all_df):
 
 
 if __name__ == "__main__":
-    # subprocess.run(["bash", "./clean_build.sh"])
-    # collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
