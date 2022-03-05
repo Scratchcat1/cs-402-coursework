@@ -17,7 +17,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
     float gamma, float Re, struct TileData* tile_data, double * sync_time_taken)
 {
-    #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re)
+    #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re, tile_data)
     {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
@@ -74,21 +74,21 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     /* f & g at external boundaries */
 
     for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) {
-        if (tile_data->start_x == 0) {
+        // if (tile_data->start_x == 0) {
             f[0][j]    = u[0][j];
-        }
-        if (tile_data->end_x >= imax) {
+        // }
+        // if (tile_data->end_x >= imax) {
             f[imax][j] = u[imax][j];
-        }
+        // }
     }
 
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
-        if (tile_data->start_y == 0) {
+        // if (tile_data->start_y == 0) {
             g[i][0]    = v[i][0];
-        }
-        if (tile_data->end_y >= jmax) {
+        // }
+        // if (tile_data->end_y >= jmax) {
             g[i][jmax] = v[i][jmax];
-        }
+        // }
     }
     }
     halo_sync(proc, f, tile_data, sync_time_taken);

@@ -250,6 +250,10 @@ int main(int argc, char *argv[])
         halo_sync(proc, u, &tile_data, &sync_time_taken); // TODO these are probably not necessary
         halo_sync(proc, v, &tile_data, &sync_time_taken);
         boundary_time_taken = MPI_Wtime() - start;
+
+        double avg_sync_time_taken = 0.0;
+        MPI_Allreduce(&sync_time_taken, &avg_sync_time_taken, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        avg_sync_time_taken /= nprocs;
         if (proc == 0) {
             printf("\n --- Timestep %f of %f ---\n", t, t_end);
             printf("timestep_time_taken: %f\n", timestep_time_taken);
@@ -259,7 +263,7 @@ int main(int argc, char *argv[])
             printf("update_velocity_time_taken: %f\n", update_velocity_time_taken);
             printf("boundary_time_taken: %f\n", boundary_time_taken);
 
-            printf("sync_time_taken: %f\n", sync_time_taken);
+            printf("sync_time_taken: %f\n", avg_sync_time_taken);
             printf("possion_p_loop_time_taken: %f\n", possion_p_loop_time_taken);
             printf("possion_res_loop_time_taken: %f\n", possion_res_loop_time_taken);
         }

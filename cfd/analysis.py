@@ -234,17 +234,17 @@ def plot_graphs():
     all_df = pd.concat(dfs, axis=0, ignore_index=True)
     # print(all_df)
     all_df["loop_time_taken"] = all_df[["timestep_time_taken", "compute_velocity_time_taken", "rhs_time_taken", "possion_time_taken", "update_velocity_time_taken", "boundary_time_taken"]].sum(axis=1)
-    # plot_time_against_thread_count(all_df)
-    # plot_speed_up_against_thread_count(all_df)
-    # plot_speed_up_against_dimensions(all_df)
-    # plot_speed_up_against_sbatch_nodes(all_df)
-    # plot_parallel_efficiency_against_thread_count(all_df)
-    # plot_parallel_efficiency_against_sbatch_nodes(all_df)
-    # plot_parallel_efficiency_against_dimensions(all_df)
+    plot_time_against_thread_count(all_df)
+    plot_speed_up_against_thread_count(all_df)
+    plot_speed_up_against_dimensions(all_df)
+    plot_speed_up_against_sbatch_nodes(all_df)
+    plot_parallel_efficiency_against_thread_count(all_df)
+    plot_parallel_efficiency_against_sbatch_nodes(all_df)
+    plot_parallel_efficiency_against_dimensions(all_df)
 
-    # plot_possion_loop_time_against_thread_count(all_df)
+    plot_possion_loop_time_against_thread_count(all_df)
     plot_possion_loop_parallel_efficiency_against_thread_count(all_df)
-    # plot_sync_time_against_sbatch_nodes(all_df)
+    plot_sync_time_against_sbatch_nodes(all_df)
 
 def plot_time_against_thread_count(all_df):
     df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
@@ -327,6 +327,7 @@ def plot_possion_loop_time_against_thread_count(all_df):
         dim_df = dim_df[dim_df["y"] == y]
         plt.plot(dim_df["omp_threads"], dim_df["possion_p_loop_time_taken"], "r" + line_style, label=f"p - {x}x{y}")
         plt.plot(dim_df["omp_threads"], dim_df["possion_res_loop_time_taken"], "b" + line_style, label=f"res - {x}x{y}")
+        plt.plot(dim_df["omp_threads"], dim_df["compute_velocity_time_taken"], "g" + line_style, label=f"ctv - {x}x{y}")
 
     plt.legend()
     plt.xticks(omp_num_threads_tested)
@@ -345,18 +346,10 @@ def plot_possion_loop_parallel_efficiency_against_thread_count(all_df):
         dim_df = dim_df[dim_df["y"] == y]
         df_st = dim_df[dim_df["omp_threads"] == 0]
         thread_nums = np.array(dim_df["omp_threads"]).copy()
-        print(dim_df["omp_threads"], "potato")
         thread_nums[0] = 1
-        print(thread_nums)
-        print(df_st["possion_p_loop_time_taken"])
-        print(dim_df["possion_p_loop_time_taken"])
-        print("HI")
-        print((df_st["possion_p_loop_time_taken"].iloc[0] / dim_df["possion_p_loop_time_taken"]) / thread_nums)
-        print(np.array((df_st["possion_p_loop_time_taken"].iloc[0] / dim_df["possion_p_loop_time_taken"]) / thread_nums))
-        print((df_st["possion_res_loop_time_taken"].iloc[0] / dim_df["possion_res_loop_time_taken"]) / thread_nums)
-        print(np.array((df_st["possion_res_loop_time_taken"].iloc[0] / dim_df["possion_res_loop_time_taken"]) / thread_nums))
         plt.plot(dim_df["omp_threads"], (df_st["possion_p_loop_time_taken"].iloc[0] / dim_df["possion_p_loop_time_taken"]) / thread_nums, "r" + line_style, label=f"p - {x}x{y}")
         plt.plot(dim_df["omp_threads"], (df_st["possion_res_loop_time_taken"].iloc[0] / dim_df["possion_res_loop_time_taken"]) / thread_nums, "b" + line_style, label=f"res - {x}x{y}")
+        plt.plot(dim_df["omp_threads"], (df_st["compute_velocity_time_taken"].iloc[0] / dim_df["compute_velocity_time_taken"]) / thread_nums, "g" + line_style, label=f"ctv - {x}x{y}")
 
     plt.legend()
     plt.xticks(omp_num_threads_tested)
