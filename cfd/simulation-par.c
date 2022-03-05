@@ -70,7 +70,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
             }
         }
     }
-
+    }
     /* f & g at external boundaries */
 
     for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) {
@@ -89,7 +89,6 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         // if (tile_data->end_y >= jmax) {
             g[i][jmax] = v[i][jmax];
         // }
-    }
     }
     halo_sync(proc, f, tile_data, sync_time_taken);
     halo_sync(proc, g, tile_data, sync_time_taken);
@@ -112,7 +111,7 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
             }
         }
     }
-    halo_sync(proc, rhs, tile_data, sync_time_taken);
+    // halo_sync(proc, rhs, tile_data, sync_time_taken);
 }
 
 /* Red/Black SOR to solve the poisson equation */

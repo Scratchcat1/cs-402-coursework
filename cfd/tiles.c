@@ -69,7 +69,7 @@ void init_tile_pos(int rank, struct TileData* tile_data) {
 }
 
 void init_tile_start_end(struct TileData* tile_data) {
-	tile_data->start_x = tile_data->pos_x * tile_data->width;	// TODO problably need to update width for edge mesh parts
+	tile_data->start_x = tile_data->pos_x * tile_data->width;
 	tile_data->start_y = tile_data->pos_y * tile_data->height;
 	tile_data->end_x = min(tile_data->start_x + tile_data->width, tile_data->mesh_width);
 	tile_data->end_y = min(tile_data->start_y + tile_data->height, tile_data->mesh_height);
@@ -197,7 +197,6 @@ void halo_sync(int rank, float** array, struct TileData* tile_data, double * syn
 	for (int i = 0; i < requests_pos; i++) {
 		// Need to wait for all receives and sends to complete before reading or writing data from the array
 		MPI_Wait(&requests[i], &s);
-		// TODO check s is ok
 	}
 	double time_taken = MPI_Wtime() - start;
 	// printf("Sync took %f seconds\n", time_taken);
