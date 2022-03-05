@@ -251,9 +251,9 @@ int main(int argc, char *argv[])
         halo_sync(proc, v, &tile_data, &sync_time_taken);
         boundary_time_taken = MPI_Wtime() - start;
 
-        double avg_sync_time_taken = 0.0;
-        MPI_Allreduce(&sync_time_taken, &avg_sync_time_taken, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-        avg_sync_time_taken /= nprocs;
+        double avg_sync_time_taken = 1.0;
+        MPI_Allreduce(&sync_time_taken, &avg_sync_time_taken, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        avg_sync_time_taken = avg_sync_time_taken / (double) nprocs;
         if (proc == 0) {
             printf("\n --- Timestep %f of %f ---\n", t, t_end);
             printf("timestep_time_taken: %f\n", timestep_time_taken);

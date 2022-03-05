@@ -479,6 +479,6 @@ def plot_sync_time_against_sbatch_nodes(all_df):
     plt.clf()
 
 if __name__ == "__main__":
-    # subprocess.run(["bash", "./clean_build.sh"])
-    # collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
