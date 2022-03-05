@@ -245,6 +245,7 @@ def plot_graphs():
     plot_possion_loop_time_against_thread_count(all_df)
     plot_possion_loop_parallel_efficiency_against_thread_count(all_df)
     plot_sync_time_against_sbatch_nodes(all_df)
+    plot_proportion_syncing_against_sbatch_nodes(all_df)
 
 def plot_time_against_thread_count(all_df):
     df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
@@ -476,6 +477,26 @@ def plot_sync_time_against_sbatch_nodes(all_df):
     plt.xlabel("Nodes")
     plt.ylabel("Time syncing (s)")
     plt.savefig("plots/sync_time_against_sbatch_nodes.png", dpi=600)
+    plt.clf()
+
+def plot_proportion_syncing_against_sbatch_nodes(all_df):
+    df = all_df.groupby(["sbatch_nodes", "omp_threads", "x", "y"], as_index=False).mean()
+    df_par = df[df["omp_threads"] > 0]
+    # print(df)
+    colours = ["r", "g", "b", "c", "m", "k", "y"]
+    line_styles = ["-", "--", "-.", ":", ":"]
+    for (x, y), line_style in zip(dimensions_plot, line_styles):
+        dim_df = df_par[df_par["x"] == x]
+        dim_df = dim_df[dim_df["y"] == y]
+        for omp_threads, colour in zip(omp_num_threads_plot, colours):
+            node_df = dim_df[dim_df["omp_threads"] == omp_threads]
+            plt.plot(node_df["sbatch_nodes"], node_df["sync_time_taken"] / node_df["loop_time_taken"], colour + line_style, label=f"{omp_threads}T - {x}x{y}")
+
+    plt.legend()
+    plt.xticks(omp_num_threads_tested)
+    plt.xlabel("Nodes")
+    plt.ylabel("Proportion spent syncing")
+    plt.savefig("plots/proportion_syncing_against_sbatch_nodes.png", dpi=600)
     plt.clf()
 
 if __name__ == "__main__":
