@@ -72,7 +72,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     }
     }
     /* f & g at external boundaries */
-
+    int i,j;
     for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) {
         // if (tile_data->start_x == 0) {
             f[0][j]    = u[0][j];
