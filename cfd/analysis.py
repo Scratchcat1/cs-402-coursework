@@ -337,7 +337,7 @@ def plot_time_against_thread_count(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("OMP Threads")
     plt.ylabel("Time")
-    plt.savefig("plots/time_against_thread_count.png", dpi=600)
+    plt.savefig("plots/time_against_thread_count.png", dpi=300)
     plt.clf()
 
 def plot_speed_up_against_thread_count(all_df):
@@ -362,7 +362,7 @@ def plot_speed_up_against_thread_count(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("OMP Threads")
     plt.ylabel("Speed up over ST")
-    plt.savefig("plots/speed_up_against_thread_count.png", dpi=600)
+    plt.savefig("plots/speed_up_against_thread_count.png", dpi=300)
     plt.clf()
 
 def plot_parallel_efficiency_against_thread_count(all_df):
@@ -387,7 +387,7 @@ def plot_parallel_efficiency_against_thread_count(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("OMP Threads")
     plt.ylabel("Parallel Eff vs ST")
-    plt.savefig("plots/parallel_efficiency_against_thread_count.png", dpi=600)
+    plt.savefig("plots/parallel_efficiency_against_thread_count.png", dpi=300)
     plt.clf()
 
 def plot_possion_loop_time_against_thread_count(all_df):
@@ -406,7 +406,7 @@ def plot_possion_loop_time_against_thread_count(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("OMP Threads")
     plt.ylabel("Time (s)")
-    plt.savefig("plots/possion_loop_time_against_thread_count.png", dpi=600)
+    plt.savefig("plots/possion_loop_time_against_thread_count.png", dpi=300)
     plt.clf()
 
 def plot_possion_loop_parallel_efficiency_against_thread_count(all_df):
@@ -428,7 +428,7 @@ def plot_possion_loop_parallel_efficiency_against_thread_count(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("OMP Threads")
     plt.ylabel("Parallel Efficiency")
-    plt.savefig("plots/possion_loop_parallel_efficiency_against_thread_count.png", dpi=600)
+    plt.savefig("plots/possion_loop_parallel_efficiency_against_thread_count.png", dpi=300)
     plt.clf()
 
 def plot_speed_up_against_dimensions(all_df):
@@ -453,7 +453,7 @@ def plot_speed_up_against_dimensions(all_df):
     ax.set_xticklabels([f"{x}x{y}" for (x,y) in dimensions])
     plt.xlabel("Dimensions")
     plt.ylabel("Speed up over ST")
-    plt.savefig("plots/speed_up_against_dimension.png", dpi=600)
+    plt.savefig("plots/speed_up_against_dimension.png", dpi=300)
     plt.clf()
 
 def plot_parallel_efficiency_against_dimensions(all_df):
@@ -478,7 +478,7 @@ def plot_parallel_efficiency_against_dimensions(all_df):
     ax.set_xticklabels([f"{x}x{y}" for (x,y) in dimensions])
     plt.xlabel("Dimensions")
     plt.ylabel("Parallel Eff vs ST")
-    plt.savefig("plots/parallel_efficiency_against_dimension.png", dpi=600)
+    plt.savefig("plots/parallel_efficiency_against_dimension.png", dpi=300)
     plt.clf()
 
 def plot_speed_up_against_sbatch_nodes(all_df):
@@ -503,7 +503,7 @@ def plot_speed_up_against_sbatch_nodes(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("Nodes")
     plt.ylabel("Speed up over ST")
-    plt.savefig("plots/speed_up_against_sbatch_nodes.png", dpi=600)
+    plt.savefig("plots/speed_up_against_sbatch_nodes.png", dpi=300)
     plt.clf()
 
 def plot_parallel_efficiency_against_sbatch_nodes(all_df):
@@ -528,7 +528,7 @@ def plot_parallel_efficiency_against_sbatch_nodes(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("Nodes")
     plt.ylabel("Parallel Eff vs ST")
-    plt.savefig("plots/parallel_efficiency_against_sbatch_nodes.png", dpi=600)
+    plt.savefig("plots/parallel_efficiency_against_sbatch_nodes.png", dpi=300)
     plt.clf()
 
 def plot_sync_time_against_sbatch_nodes(all_df):
@@ -548,7 +548,7 @@ def plot_sync_time_against_sbatch_nodes(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("Nodes")
     plt.ylabel("Time syncing (s)")
-    plt.savefig("plots/sync_time_against_sbatch_nodes.png", dpi=600)
+    plt.savefig("plots/sync_time_against_sbatch_nodes.png", dpi=300)
     plt.clf()
 
 def plot_proportion_syncing_against_sbatch_nodes(all_df):
@@ -568,10 +568,10 @@ def plot_proportion_syncing_against_sbatch_nodes(all_df):
     plt.xticks(omp_num_threads_tested)
     plt.xlabel("Nodes")
     plt.ylabel("Proportion spent syncing")
-    plt.savefig("plots/proportion_syncing_against_sbatch_nodes.png", dpi=600)
+    plt.savefig("plots/proportion_syncing_against_sbatch_nodes.png", dpi=300)
     plt.clf()
 
 if __name__ == "__main__":
-#    subprocess.run(["bash", "./clean_build.sh"])
-#    collect_data()
+    subprocess.run(["bash", "./clean_build.sh"])
+    collect_data()
     plot_graphs()
