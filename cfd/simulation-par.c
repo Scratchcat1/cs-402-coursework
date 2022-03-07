@@ -30,7 +30,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
 {
     // Create the threads outside the two big loops to avoid the overhead of creating and joining the threads twice
     // Use firstprivate to provide a private copy of the parameters
-    #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re, tile_data)
+    #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re, tile_data, u, v, f, g, flag) default(none)
     {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
@@ -87,9 +87,10 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
             }
         }
     }
-    }
     /* f & g at external boundaries */
-    int i,j;
+    // int i,j;
+    // Parallelise but typically small compared to the previous loop so they don't really make a difference
+    #pragma omp for
     for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) {
         // if (tile_data->start_x == 0) {
             f[0][j]    = u[0][j];
@@ -98,7 +99,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
             f[imax][j] = u[imax][j];
         // }
     }
-
+    #pragma omp for
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
         // if (tile_data->start_y == 0) {
             g[i][0]    = v[i][0];
@@ -106,6 +107,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
         // if (tile_data->end_y >= jmax) {
             g[i][jmax] = v[i][jmax];
         // }
+    }
     }
     // Synchronise f and g as they are used elsewhere in a 5 stencil pattern and so need the edge data
     halo_sync(proc, f, tile_data, sync_time_taken);
@@ -115,9 +117,10 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
 
 /* Calculate the right hand side of the pressure equation */
 void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
-    int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken)
+    int jmax, float del_t, float delx, float dely, struct TileData* tile_data)
 {
     int i, j;
+    #pragma omp parallel for collapse(2) private(i, j) firstprivate(imax, jmax, del_t, delx, dely, tile_data, f, g, rhs, flag) default(none)
     for (i=max(1, tile_data->start_x);i<=min(imax, tile_data->end_x-1);i++) {
         for (j=max(1, tile_data->start_y);j<=min(jmax, tile_data->end_y-1);j++) {
             if (flag[i][j] & C_F) {
@@ -150,6 +153,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     beta_2 = -omega/(2.0*(rdx2+rdy2));
 
     /* Calculate sum of squares */
+    #pragma omp parallel for private(i, j) firstprivate(tile_data, imax, jmax, flag, p) reduction(+:p0) default(none) collapse(2)
     for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x-1); i++) {
         for (j= max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
@@ -179,7 +183,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     // Local iteration variables are kept private. Iter has to have a local copy to prevent threads all incrementing the shared variable. iter is updated from each thread's local copy of iter_local
     // Iteration, matrices and timing variables are shared between threads
     // The rest are copied to a thread private copy
-    #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local, sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
+    #pragma omp parallel private(i, j, add, rb) shared(iter, res_sum_local, sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs, p, rhs, flag)
     {
     for (int iter_local = 0; iter_local < itermax; iter_local++) {
         double start = 0.0;
@@ -190,10 +194,11 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             // No need for private i,j as they are already thread private
             // Note: doesn't use collapse as the offset which eliminiates a branch from the hot loop body
             // depends on i
-            #pragma omp for
+            #pragma omp for collapse(2)
             for (i = i_start; i <=i_end; i++) {
-                int offset = ((i + j_start) % 2 != rb);
-                for (j = j_start+offset; j <= j_end; j += 2) {
+                // int offset = ((i + j_start) % 2 != rb);
+                for (j = j_start; j <= j_end; j++) {
+                    if ((i+j) % 2 != rb) { continue; }
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 
@@ -277,22 +282,26 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
  */
 void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken)
-{
-    // No parallelisation as the speed up is too low for the sizes tested
-    int i, j;
-    for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
-        for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
-            /* only if both adjacent cells are fluid cells */
-            if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
-                u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
+{   
+    #pragma omp parallel firstprivate(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, tile_data) default(none)
+    {
+        int i, j;
+        #pragma omp for collapse(2)
+        for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
+            for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
+                /* only if both adjacent cells are fluid cells */
+                if ((flag[i][j] & C_F) && (flag[i+1][j] & C_F)) {
+                    u[i][j] = f[i][j]-(p[i+1][j]-p[i][j])*del_t/delx;
+                }
             }
         }
-    }
-    for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x - 1); i++) {
-        for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y - 1); j++) {
-            /* only if both adjacent cells are fluid cells */
-            if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
-                v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
+        #pragma omp for collapse(2)
+        for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x - 1); i++) {
+            for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y - 1); j++) {
+                /* only if both adjacent cells are fluid cells */
+                if ((flag[i][j] & C_F) && (flag[i][j+1] & C_F)) {
+                    v[i][j] = g[i][j]-(p[i][j+1]-p[i][j])*del_t/dely;
+                }
             }
         }
     }
@@ -318,14 +327,20 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
         vmax_local = 1.0e-10; 
         // No parallelisation as the overhead is too high for gains possible
         // Calculate the local umax and vmax
-        for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x - 1); i++) {
-            for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y - 1); j++) {
-                umax_local = max(fabs(u[i][j]), umax_local);
+
+        #pragma omp parallel private(i, j) firstprivate(imax, jmax, tile_data, u, v) shared(umax_local, vmax_local) default(none)
+        {
+            #pragma omp for collapse(2) reduction(max:umax_local)
+            for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x - 1); i++) {
+                for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y - 1); j++) {
+                    umax_local = max(fabs(u[i][j]), umax_local);
+                }
             }
-        }
-        for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x - 1); i++) {
-            for (j=tile_data->start_y; j<=min(jmax+1, tile_data->end_y - 1); j++) {
-                vmax_local = max(fabs(v[i][j]), vmax_local);
+            #pragma omp for collapse(2) reduction(max:vmax_local)
+            for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x - 1); i++) {
+                for (j=tile_data->start_y; j<=min(jmax+1, tile_data->end_y - 1); j++) {
+                    vmax_local = max(fabs(v[i][j]), vmax_local);
+                }
             }
         }
 

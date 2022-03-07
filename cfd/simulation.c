@@ -129,8 +129,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         double start = MPI_Wtime();
         for (rb = 0; rb <= 1; rb++) {
             for (i = 1; i <= imax; i++) {
-                for (j = 1 + ((i-rb-1) % 2); j <= jmax; j += 2) {
-                    // if ((i+j) % 2 != rb) { continue; }
+                for (j = 1; j <= jmax; j++) {
+                    if ((i+j) % 2 != rb) { continue; }
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 

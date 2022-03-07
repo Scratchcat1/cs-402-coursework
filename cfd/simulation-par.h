@@ -6,7 +6,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     float gamma, float Re, struct TileData* tile_data, double * sync_time_taken);
 
 void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
-    int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken);
+    int jmax, float del_t, float delx, float dely, struct TileData* tile_data);
 
 int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     float delx, float dely, float eps, int itermax, float omega,

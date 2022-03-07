@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
         compute_velocity_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
-        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely, &tile_data, &sync_time_taken);
+        compute_rhs(f, g, rhs, flag, imax, jmax, del_t, delx, dely, &tile_data);
         rhs_time_taken = MPI_Wtime() - start;
 
         start = MPI_Wtime();
