@@ -36,7 +36,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
     // Start a parallel for loop
-    #pragma omp for
+    #pragma omp for collapse(2)
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1,imax-1); i++) { // i=1 i <=imax -1
         for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) { // j=1 j <=jmax
             /* only if both adjacent cells are fluid cells */
@@ -63,7 +63,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
 
     // Start the second parallel for loop
     // The alternative would be to run as parallel tasks as well but typically the tile is large enough to occupy all the resources available
-    #pragma omp for
+    #pragma omp for collapse(2)
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
         for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax-1); j++) {
             /* only if both adjacent cells are fluid cells */
@@ -189,6 +189,8 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
 
             // Start the for loop with the threads already created
             // No need for private i,j as they are already thread private
+            // Note: doesn't use collapse as the offset which eliminiates a branch from the hot loop body
+            // depends on i
             #pragma omp for
             for (i = i_start; i <=i_end; i++) {
                 int offset = ((i + j_start) % 2 != rb);
@@ -231,7 +233,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
 
         start = MPI_Wtime();
         // Start a parallel for reduction using the res_sum_local variable
-        #pragma omp for reduction(+:res_sum_local)
+        #pragma omp for reduction(+:res_sum_local) collapse(2)
         for (i = i_start; i <= i_end; i++) {
             for (j = j_start; j <= j_end; j++) {
                 if (flag[i][j] & C_F) {
