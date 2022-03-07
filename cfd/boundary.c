@@ -105,6 +105,8 @@ void apply_boundary_conditions(float **u, float **v, char **flag,
 /* Given the boundary conditions defined by the flag matrix, update
  * the u and v velocities. Also enforce the boundary conditions at the
  * edges of the matrix.
+
+ * Note: this is the same function as above but all operations are performed within the tile
  */
 void apply_tile_boundary_conditions(float **u, float **v, char **flag,
     int imax, int jmax, float ui, float vi, struct TileData* tile_data)

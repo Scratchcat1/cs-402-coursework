@@ -12,15 +12,30 @@
 extern int *ileft, *iright;
 extern int nprocs, proc;
 
+/////////////////////////////////////////////
+// Note: all the loops here iterate over the tile
+// rather than the full array
+// Conversion is simple 
+// start -> max(start, tile->start_?)
+// end -> min(end, tile->end_?)
+// As this appears all through the program
+// I will only comment about it here to avoid
+// repeating everything a bunch of times
+/////////////////////////////////////////////
+
+
 /* Computation of tentative velocity field (f, g) */
 void compute_tentative_velocity(float **u, float **v, float **f, float **g,
     char **flag, int imax, int jmax, float del_t, float delx, float dely,
     float gamma, float Re, struct TileData* tile_data, double * sync_time_taken)
 {
+    // Create the threads outside the two big loops to avoid the overhead of creating and joining the threads twice
+    // Use firstprivate to provide a private copy of the parameters
     #pragma omp parallel firstprivate(imax, jmax, del_t, delx, dely, gamma, Re, tile_data)
     {
     int  i, j;
     float du2dx, duvdy, duvdx, dv2dy, laplu, laplv;
+    // Start a parallel for loop
     #pragma omp for
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1,imax-1); i++) { // i=1 i <=imax -1
         for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax); j++) { // j=1 j <=jmax
@@ -45,6 +60,9 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
             }
         }
     }
+
+    // Start the second parallel for loop
+    // The alternative would be to run as parallel tasks as well but typically the tile is large enough to occupy all the resources available
     #pragma omp for
     for (i=max(1, tile_data->start_x); i<=min(tile_data->end_x-1, imax); i++) {
         for (j=max(1, tile_data->start_y); j<=min(tile_data->end_y-1, jmax-1); j++) {
@@ -90,6 +108,7 @@ void compute_tentative_velocity(float **u, float **v, float **f, float **g,
             g[i][jmax] = v[i][jmax];
         // }
     }
+    // Synchronise f and g as they are used elsewhere in a 5 stencil pattern and so need the edge data
     halo_sync(proc, f, tile_data, sync_time_taken);
     halo_sync(proc, g, tile_data, sync_time_taken);
 }
@@ -111,6 +130,7 @@ void compute_rhs(float **f, float **g, float **rhs, char **flag, int imax,
             }
         }
     }
+    // RHS doesn't need to be synced as all RHS accesses take place within the same tile (rhs[i][j])
     // halo_sync(proc, rhs, tile_data, sync_time_taken);
 }
 
@@ -137,13 +157,13 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         }
     }
 
+    // Perform an all reduce sum with the local p0 sums
+    // to get the real p0 to every thread
     double start_out = MPI_Wtime();
     float p0sum;
     MPI_Allreduce(&p0, &p0sum, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
     p0 = p0sum;
     *sync_time_taken += MPI_Wtime() - start_out;
-//    printf("num threads %d\n", omp_get_max_threads());
-//    printf("%f p0 sync\n", MPI_Wtime() - start_out);
 
     p0 = sqrt(p0/ifull);
     if (p0 < 0.0001) { p0 = 1.0; }
@@ -154,14 +174,22 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     int j_end = min(jmax, tile_data->end_y - 1);
     float res_sum_local = 0.0;
     /* Red/Black SOR-iteration */
- //   printf("Going parallel\n");
+    
+    // Create the parallel region here as the loop may run up to 100 times
+    // The overhead of creating/joining threads 3x100 times would be extremely high
+    // Local iteration variables are kept private. Iter has to have a local copy to prevent threads all incrementing the shared variable. iter is updated from each thread's local copy of iter_local
+    // Iteration, matrices and timing variables are shared between threads
+    // The rest are copied to a thread private copy
     #pragma omp parallel private(i, j, add, rb) shared(iter, p, rhs, flag, res_sum_local, sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken) firstprivate(i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod, itermax, res, tile_data, proc, imax, jmax, eps, p0, ifull, nprocs)
     {
     for (int iter_local = 0; iter_local < itermax; iter_local++) {
         double start = 0.0;
         for (rb = 0; rb <= 1; rb++) {
             start = MPI_Wtime();
-            #pragma omp for  //private(i, j) //firstprivate(rb, i_start, i_end, j_start, j_end,omega, beta_2, rdx2, rdy2, beta_mod)
+
+            // Start the for loop with the threads already created
+            // No need for private i,j as they are already thread private
+            #pragma omp for
             for (i = i_start; i <=i_end; i++) {
                 int offset = ((i + j_start) % 2 != rb);
                 for (j = j_start+offset; j <= j_end; j += 2) {
@@ -186,18 +214,23 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
                     // printf("%d: %d\n", omp_get_thread_num(), i);
                 } /* end of j */
             } /* end of i */
-         //   #pragma omp barrier
+
+            // only allow a single thread to run this block, blocks for the other threads
             #pragma omp single
-            {
+            {   
+                // Update time taken
                 double time_taken = MPI_Wtime() - start;
                 *possion_p_loop_time_taken += time_taken;
 //                printf("%d: loop %f\n", omp_get_thread_num(), MPI_Wtime() - start);
+                // Only a single thread is allowed to sync the matrix
                 halo_sync(proc, p, tile_data, sync_time_taken);
+                // Ensure only a single thread sets this to 0.0
                 res_sum_local = 0.0;
             }
         } /* end of rb */
 
         start = MPI_Wtime();
+        // Start a parallel for reduction using the res_sum_local variable
         #pragma omp for reduction(+:res_sum_local)
         for (i = i_start; i <= i_end; i++) {
             for (j = j_start; j <= j_end; j++) {
@@ -213,14 +246,20 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
         }
         double time_taken = MPI_Wtime() - start;
 //        printf("%f res sum local\n", MPI_Wtime() - start);
+
         start = MPI_Wtime();
+        // sum up the residual across MPI processes
+        // Only a single thread can execute the MPI send/recv 
         #pragma omp single
-        {
+        {   
+            // Update time taken
             *possion_res_loop_time_taken += time_taken;
             /* Partial computation of residual */
             *res = res_sum_local;
+            // Perform a sum reduction and send result to all processes
             MPI_Allreduce(&res_sum_local, res, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
             *res = sqrt((*res)/ifull)/p0;
+            // Update the iterator
             iter = iter_local;
         }
 //        printf("%f res bcast\n", MPI_Wtime() - start);
@@ -238,6 +277,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
 void update_velocity(float **u, float **v, float **f, float **g, float **p,
     char **flag, int imax, int jmax, float del_t, float delx, float dely, struct TileData* tile_data, double * sync_time_taken)
 {
+    // No parallelisation as the speed up is too low for the sizes tested
     int i, j;
     for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
         for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
@@ -255,6 +295,7 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
             }
         }
     }
+    // Sync u,v as they have been updated and are accessed elsewhere in a 5 stencil pattern
     halo_sync(proc, u, tile_data, sync_time_taken);
     halo_sync(proc, v, tile_data, sync_time_taken);
 }
@@ -274,6 +315,8 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
     if (tau >= 1.0e-10) { /* else no time stepsize control */
         umax_local = 1.0e-10;
         vmax_local = 1.0e-10; 
+        // No parallelisation as the overhead is too high for gains possible
+        // Calculate the local umax and vmax
         for (i=tile_data->start_x; i<=min(imax+1, tile_data->end_x - 1); i++) {
             for (j=max(1, tile_data->start_y); j<=min(jmax+1, tile_data->end_y - 1); j++) {
                 umax_local = max(fabs(u[i][j]), umax_local);
@@ -285,6 +328,8 @@ void set_timestep_interval(float *del_t, int imax, int jmax, float delx,
             }
         }
 
+        // calculate the global umax and vmax by performing a max reduction on both vars
+        // using MPI_Allreduce
         double start = MPI_Wtime();
         float max_buffer[2];
         max_buffer[0] = umax_local;

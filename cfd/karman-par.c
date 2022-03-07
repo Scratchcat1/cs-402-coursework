@@ -157,8 +157,10 @@ int main(int argc, char *argv[])
     rhs  = alloc_floatmatrix(imax+2, jmax+2); 
     flag = alloc_charmatrix(imax+2, jmax+2);      
 
+    // Initialise the tile data
     struct TileData tile_data;
     init_tile_data(proc, nprocs, imax + 2, jmax + 2, &tile_data);
+    // Output the info for debug purposes
     if (proc == 0) {
         printf("I am process %d. The mesh has been split into a shape of %dx%d. Tiles sizes are %dx%d\n. My pos is %dx%d. Array access is [%d:%d, %d:%d]\n"
         , proc, 
@@ -199,15 +201,17 @@ int main(int argc, char *argv[])
         init_flag(flag, imax, jmax, delx, dely, &ibound);
         apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
         double sync_time_taken = 0.0;
-        halo_sync(proc, u, &tile_data, &sync_time_taken); // TODO these are probably not necessary. All threads generate this data
+        halo_sync(proc, u, &tile_data, &sync_time_taken);
         halo_sync(proc, v, &tile_data, &sync_time_taken);
         halo_sync(proc, p, &tile_data, &sync_time_taken);
     }
 
+    // Variables to keep track of time taken for each part
     double start, timestep_time_taken, compute_velocity_time_taken, rhs_time_taken, possion_time_taken, update_velocity_time_taken, boundary_time_taken;
     double sync_time_taken, possion_p_loop_time_taken, possion_res_loop_time_taken = 0.0;
     /* Main loop */
     for (t = 0.0; t < t_end; t += del_t, iters++) {
+        // Reset the cumulative time variables for each new loop iteration
         sync_time_taken = 0.0;
         possion_p_loop_time_taken = 0.0;
         possion_res_loop_time_taken = 0.0;
@@ -247,14 +251,16 @@ int main(int argc, char *argv[])
 
         start = MPI_Wtime();
         apply_tile_boundary_conditions(u, v, flag, imax, jmax, ui, vi, &tile_data);
-        halo_sync(proc, u, &tile_data, &sync_time_taken); // TODO these are probably not necessary
+        halo_sync(proc, u, &tile_data, &sync_time_taken);
         halo_sync(proc, v, &tile_data, &sync_time_taken);
         boundary_time_taken = MPI_Wtime() - start;
 
+        // Calculate the average time spent syncing
         double avg_sync_time_taken = 1.0;
-        MPI_Allreduce(&sync_time_taken, &avg_sync_time_taken, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Reduce(&sync_time_taken, &avg_sync_time_taken, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
         avg_sync_time_taken = avg_sync_time_taken / (double) nprocs;
         if (proc == 0) {
+            // Output timing data
             printf("\n --- Timestep %f of %f ---\n", t, t_end);
             printf("timestep_time_taken: %f\n", timestep_time_taken);
             printf("compute_velocity_time_taken: %f\n", compute_velocity_time_taken);
@@ -269,7 +275,7 @@ int main(int argc, char *argv[])
         }
     } /* End of main loop */
     
-
+    // Copy all the tiles to the root node (0) to save the output
     sync_tile_to_root(proc, u, &tile_data);
     sync_tile_to_root(proc, v, &tile_data);
     sync_tile_to_root(proc, f, &tile_data);
