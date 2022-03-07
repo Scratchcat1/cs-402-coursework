@@ -4,7 +4,6 @@
 #include "datadef.h"
 #include "init.h"
 #include "tiles.h"
-#include <omp.h>
 #include <mpi.h>
 #define max(x,y) ((x)>(y)?(x):(y))
 #define min(x,y) ((x)<(y)?(x):(y))
