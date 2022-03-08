@@ -140,7 +140,7 @@ void apply_tile_boundary_conditions(float **u, float **v, char **flag,
         * internal obstacle cells. This forces the u and v velocity to
         * tend towards zero in these cells.
         */
-        #pragma omp for collapse(2)
+        #pragma omp for //collapse(2) collapse is 2x slower
         for (i=max(1, tile_data->start_x); i<=min(imax+1, tile_data->end_x-1); i++) {
             for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
                 if (flag[i][j] & B_NSEW) {

@@ -153,7 +153,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
     beta_2 = -omega/(2.0*(rdx2+rdy2));
 
     /* Calculate sum of squares */
-    #pragma omp parallel for private(i, j) firstprivate(tile_data, imax, jmax, flag, p) reduction(+:p0) default(none) collapse(2)
+//    #pragma omp parallel for private(i, j) firstprivate(tile_data, imax, jmax, flag, p) reduction(+:p0) default(none) collapse(2)
     for (i = max(1, tile_data->start_x); i <= min(imax, tile_data->end_x-1); i++) {
         for (j= max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
             if (flag[i][j] & C_F) { p0 += p[i][j]*p[i][j]; }
@@ -194,11 +194,11 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
             // No need for private i,j as they are already thread private
             // Note: doesn't use collapse as the offset which eliminiates a branch from the hot loop body
             // depends on i
-            #pragma omp for collapse(2)
+            #pragma omp for // collapse(2) // collapse takes 2x longer
             for (i = i_start; i <=i_end; i++) {
-                // int offset = ((i + j_start) % 2 != rb);
-                for (j = j_start; j <= j_end; j++) {
-                    if ((i+j) % 2 != rb) { continue; }
+                int offset = ((i + j_start) % 2 != rb);
+                for (j = j_start + offset; j <= j_end; j+=2) {
+//                    if ((i+j) % 2 != rb) { continue; }
                     if (flag[i][j] == (C_F | B_NSEW)) {
                         /* five point star for interior fluid cells */
                         p[i][j] = (1.-omega)*p[i][j] - 
@@ -237,7 +237,7 @@ int poisson(float **p, float **rhs, char **flag, int imax, int jmax,
 
         start = MPI_Wtime();
         // Start a parallel for reduction using the res_sum_local variable
-        #pragma omp for reduction(+:res_sum_local) collapse(2)
+        #pragma omp for reduction(+:res_sum_local) // collapse(2) collapse takes 2x longer
         for (i = i_start; i <= i_end; i++) {
             for (j = j_start; j <= j_end; j++) {
                 if (flag[i][j] & C_F) {
@@ -286,7 +286,7 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
     #pragma omp parallel firstprivate(u, v, f, g, p, flag, imax, jmax, del_t, delx, dely, tile_data) default(none)
     {
         int i, j;
-        #pragma omp for collapse(2)
+        #pragma omp for // collapse(2)
         for (i=max(1, tile_data->start_x); i<=min(imax-1, tile_data->end_x-1); i++) {
             for (j=max(1, tile_data->start_y); j<=min(jmax, tile_data->end_y-1); j++) {
                 /* only if both adjacent cells are fluid cells */
@@ -295,7 +295,7 @@ void update_velocity(float **u, float **v, float **f, float **g, float **p,
                 }
             }
         }
-        #pragma omp for collapse(2)
+        #pragma omp for // collapse(2)
         for (i=max(1, tile_data->start_x); i<=min(imax, tile_data->end_x - 1); i++) {
             for (j=max(1, tile_data->start_y); j<=min(jmax-1, tile_data->end_y - 1); j++) {
                 /* only if both adjacent cells are fluid cells */
