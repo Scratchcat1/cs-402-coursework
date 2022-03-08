@@ -191,6 +191,7 @@ int main(int argc, char *argv[])
 
     if (init_case < 0) {
         /* Set initial values if file doesn't exist */
+        #pragma omp parallel for private(i, j) firstprivate(ui, vi, u, v, p, imax, jmax) default(none)
         for (i=0;i<=imax+1;i++) {
             for (j=0;j<=jmax+1;j++) {
                 u[i][j] = ui;
